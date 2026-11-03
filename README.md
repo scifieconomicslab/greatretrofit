@@ -1,6 +1,12 @@
 # The Great Retrofit: Housing Retrofit Co-op Simulation Models
 
-A simulation of **housing retrofit cooperatives** (Brussels context): buildings that need energy retrofit are queued, assigned to retrofit co-ops, financed, and completed, while households, banks, investors and demographics interact over a weekly time axis. Two versions are provided: **v1** (baseline queueing-financial model) and **v2** (full agent-based model).
+A simulation of **housing retrofit cooperatives** (Brussels context): buildings that need energy retrofit are queued, assigned to retrofit co-ops, financed, and completed, while households, banks, investors and demographics interact over a weekly time axis.
+
+There are two versions in this repo. the folder v1 contains a python rewrite of the original (in folder Joffa's original) python notebook. This was done to make testing and rewrites easier.
+
+The v2 folder contains the upgraded model, as well as a python notebook derived from that code, so as to make it easier to tinker with and see the results.
+
+The python notebook contains its own documentation and also contains additional code to plot the various variables we're interested in as as series of charts.
 
 Contributing models: **Nvidia Nemotron 3 Ultra** and **Beam 1.0**.
 
