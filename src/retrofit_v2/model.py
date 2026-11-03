@@ -13,12 +13,22 @@ from common.rng import make_rng
 
 
 def gini_coefficient(values: np.ndarray) -> float:
-    """Calculate Gini coefficient of an array of values."""
+    """Calculate Gini coefficient of an array of values.
+    
+    Handles negative values by shifting to non-negative.
+    """
     if len(values) == 0:
         return 0.0
+    values = np.array(values)
+    # Shift to non-negative if needed
+    min_val = np.min(values)
+    if min_val < 0:
+        values = values - min_val
     values = np.sort(values)
     n = len(values)
     cumsum = np.cumsum(values)
+    if cumsum[-1] == 0:
+        return 0.0
     return (2 * np.sum((np.arange(1, n+1) * values))) / (n * cumsum[-1]) - (n + 1) / n
 
 
