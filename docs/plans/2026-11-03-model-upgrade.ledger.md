@@ -3,4 +3,5 @@
 Task 1: complete (commit 8184dca, tests: pytest tests/test_v1_basics.py tests/test_invariants.py -v → 22 passed)
 Task 2: complete (included in Task 1 commit - invariant tests created and passing)
 Task 3: complete (included in Task 1 commit - v1 documentation created)
-Task 4: complete (commit pending, tests: pytest tests/test_v2_basics.py -v → 6 passed, full suite: 28 passed)
+Task 4: complete (commit 53295b1, tests: pytest tests/test_v2_basics.py -v → 6 passed, full suite: 28 passed)
+Task 5: complete (commit pending, tests: pytest tests/test_v2_financial.py -v → 3 passed, full suite: 31 passed)

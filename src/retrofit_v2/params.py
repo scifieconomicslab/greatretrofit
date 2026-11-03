@@ -62,6 +62,21 @@ class Params:
     # Spatial parameters
     n_neighbourhoods: int = 1
 
+    # Bargaining parameters
+    enable_bargaining: bool = False
+    max_bid_shade: float = 0.2  # Max fraction below asking price buyers can bid
+    seller_reservation_pct: float = 0.8  # Min fraction of asking price sellers accept
+
+    # Bank parameters
+    n_banks: int = 0
+    bank_ltv_mean: float = 0.8
+    bank_ltv_sd: float = 0.05
+    bank_spread_mean: float = 0.02
+    bank_spread_sd: float = 0.005
+
+    # Default parameters
+    enable_default: bool = False
+
     def __post_init__(self) -> None:
         # Base validation
         validate_integer_positive(self.n, "n")
@@ -89,3 +104,17 @@ class Params:
 
         # Spatial validation
         validate_integer_positive(self.n_neighbourhoods, "n_neighbourhoods")
+
+        # Bargaining validation
+        if self.enable_bargaining:
+            validate_probability(self.max_bid_shade, "max_bid_shade")
+            validate_probability(self.seller_reservation_pct, "seller_reservation_pct")
+
+        # Bank validation
+        validate_nonnegative(self.n_banks, "n_banks")
+        if self.n_banks > 0:
+            validate_integer_positive(self.n_banks, "n_banks")
+            validate_probability(self.bank_ltv_mean, "bank_ltv_mean")
+            validate_nonnegative(self.bank_ltv_sd, "bank_ltv_sd")
+            validate_nonnegative(self.bank_spread_mean, "bank_spread_mean")
+            validate_nonnegative(self.bank_spread_sd, "bank_spread_sd")

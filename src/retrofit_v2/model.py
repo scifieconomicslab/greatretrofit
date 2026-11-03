@@ -8,6 +8,7 @@ from .results import Result
 from .households import Household, create_households
 from .buildings import Building, create_buildings
 from .coops import Coop, create_coops
+from .banks import Bank, create_banks
 from common.rng import make_rng
 
 
@@ -36,6 +37,7 @@ def run_simulation(params: Params) -> Result:
     households = create_households(params, rng)
     buildings = create_buildings(params, households, rng)
     coops = create_coops(params)
+    banks = create_banks(params, rng)
 
     # Map building ID -> Building for quick lookup
     building_map = {b.id: b for b in buildings}
@@ -63,6 +65,12 @@ def run_simulation(params: Params) -> Result:
 
     # Time-on-market tracking per building
     building_entry_week = {b.id: -1 for b in buildings}
+
+    # Financial tracking
+    total_loan_volume = 0.0
+    default_count = 0
+    cash_purchases = 0
+    total_purchases = 0
 
     t = 0
     while t < params.run_time:
@@ -94,7 +102,7 @@ def run_simulation(params: Params) -> Result:
 
             to_do = [b_id for b_id in to_do if b_id not in requesting]
 
-        # 2. Assign queued buildings to co-ops
+        # 2. Assign queued buildings to co-ops (with bargaining)
         with_capacity_count = 0
         for b_id in queued.copy():
             building = building_map[b_id]
@@ -126,10 +134,46 @@ def run_simulation(params: Params) -> Result:
             building.assigned_coop = c_id
             building.weeks_remaining = building.retrofit_time
 
+            # Bargaining: household bids below asking price
+            owner = households[building.owner_id]
+            if params.enable_bargaining:
+                bid = owner.bid_price(building.retrofit_cost, params, rng)
+                reservation = building.retrofit_cost * params.seller_reservation_pct
+                if bid < reservation:
+                    # Negotiation failed - building returns to queued
+                    coop.projects.remove(building.id)
+                    building.state = 'queued'
+                    building.assigned_coop = None
+                    queued.append(building.id)
+                    continue
+
+                # Successful negotiation at bid price
+                building.negotiated_price = bid
+            else:
+                building.negotiated_price = building.retrofit_cost
+
+            # Co-op may request loan for the project
+            total_purchases += 1
+            if params.n_banks > 0 and rng.random() < 0.5:  # 50% chance to seek financing
+                loan_terms = coop.request_loan(building.negotiated_price, banks, building_map, rng)
+                if loan_terms:
+                    total_loan_volume += loan_terms['amount']
+                    building.financed = True
+                else:
+                    building.financed = False
+                    cash_purchases += 1
+            else:
+                building.financed = False
+                cash_purchases += 1
+
         weekly_with_capacity[t] = with_capacity_count
 
-        # 3. Co-ops do work on projects
+        # 3. Co-ops do work on projects and make loan payments
         for coop in coops:
+            # Make loan payments first
+            if params.n_banks > 0:
+                coop.make_loan_payments(banks)
+
             for p_id in copy.deepcopy(coop.projects):
                 building = building_map[p_id]
                 if building.weeks_remaining <= 0:
@@ -141,18 +185,27 @@ def run_simulation(params: Params) -> Result:
                     finished.append(p_id)
 
                     # Co-op receives payment with surplus
-                    revenue = (1 + params.surplus) * building.retrofit_cost
+                    price = getattr(building, 'negotiated_price', building.retrofit_cost)
+                    revenue = (1 + params.surplus) * price
                     coop.account += revenue
                     coop.total_revenue += revenue
 
-                    # Household pays (simplified: wealth decreases by cost)
+                    # Household pays (wealth decreases by negotiated price)
                     owner = households[building.owner_id]
-                    owner.wealth = max(0, owner.wealth - building.retrofit_cost)
+                    owner.wealth = max(0, owner.wealth - price)
                 else:
                     # Work in progress
                     if coop.account >= params.week_cost:
                         building.weeks_remaining -= 1
                         coop.account -= params.week_cost
+
+        # 4. Bank default processing
+        if params.enable_default and params.n_banks > 0:
+            for bank in banks:
+                defaulted = bank.check_defaults({c.id: c for c in coops})
+                for loan_idx in defaulted:
+                    bank.process_default(loan_idx)
+                    default_count += 1
 
         t += 1
 
@@ -172,10 +225,9 @@ def run_simulation(params: Params) -> Result:
     actual_weeks = t + 1
 
     # Calculate final monitors
-    # Gini wealth at end
     gini_wealth = weekly_gini[actual_weeks - 1]
 
-    # Price dispersion (coefficient of variation of retrofit costs)
+    # Price dispersion
     finished_costs = np.array([building_map[b_id].retrofit_cost for b_id in finished])
     price_dispersion = np.std(finished_costs) / np.mean(finished_costs) if len(finished_costs) > 0 else 0.0
 
@@ -196,12 +248,14 @@ def run_simulation(params: Params) -> Result:
         price_dispersion_within = 0.0
         price_dispersion_between = 0.0
 
-    # Cash buyer share (simplified: all are cash buyers in this version)
-    cash_buyer_share = 1.0
+    # Cash buyer share
+    cash_buyer_share = cash_purchases / total_purchases if total_purchases > 0 else 1.0
+
+    # Bank losses
+    bank_losses = sum(b.losses for b in banks)
 
     # Time on market spread
     if neighbourhood_time_on_market is not None:
-        # Calculate average time on market per neighbourhood
         nh_times = []
         for nh in range(params.n_neighbourhoods):
             nh_finished = [b_id for b_id in finished
@@ -235,4 +289,7 @@ def run_simulation(params: Params) -> Result:
         cash_buyer_share=cash_buyer_share,
         time_on_market_spread=time_on_market_spread,
         neighbourhood_time_on_market=neighbourhood_time_on_market[:, :actual_weeks] if neighbourhood_time_on_market is not None else None,
+        bank_losses=bank_losses,
+        default_count=default_count,
+        total_loan_volume=total_loan_volume,
     )

@@ -50,6 +50,35 @@ class Household:
         """Check if household can afford a retrofit of given cost."""
         return cost <= self.max_affordable_cost()
 
+    def bid_price(self, asking_price: float, params: 'Params', rng: np.random.Generator) -> float:
+        """Calculate bid price below asking price based on willingness to pay.
+
+        Args:
+            asking_price: The asking price (retrofit cost).
+            params: Simulation parameters.
+            rng: Random number generator.
+
+        Returns:
+            Bid price (may be lower than asking).
+        """
+        if not params.enable_bargaining:
+            return asking_price
+
+        # Bid shade: random up to max_bid_shade based on affordability pressure
+        affordability_pressure = 1.0 - (self.wealth / max(1, self.max_affordable_cost()))
+        affordability_pressure = np.clip(affordability_pressure, 0, 1)
+
+        max_shade = params.max_bid_shade * affordability_pressure
+        shade = rng.uniform(0, max_shade)
+
+        bid = asking_price * (1 - shade)
+        # Don't bid more than can afford
+        return min(bid, self.max_affordable_cost())
+
+    def reservation_price(self, asking_price: float, params: 'Params') -> float:
+        """Minimum price household would accept as seller (not used for owners, but for symmetry)."""
+        return asking_price * params.seller_reservation_pct
+
 
 def create_households(params: Params, rng: np.random.Generator) -> List[Household]:
     """Create all households with heterogeneous attributes.

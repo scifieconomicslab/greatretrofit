@@ -51,6 +51,11 @@ class Result:
     time_on_market_spread: float = 0.0
     neighbourhood_time_on_market: Optional[np.ndarray] = None
 
+    # Bank/financial monitors
+    bank_losses: float = 0.0
+    default_count: int = 0
+    total_loan_volume: float = 0.0
+
     def __len__(self) -> int:
         """Return number of recorded weeks."""
         return len(self.weekly_finished)
