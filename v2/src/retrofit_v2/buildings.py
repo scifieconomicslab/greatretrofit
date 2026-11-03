@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from .params import Params
-from common.rng import make_rng
+from .common.rng import make_rng
 
 
 @dataclass

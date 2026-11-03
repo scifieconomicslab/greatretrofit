@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from .params import Params
-from common.rng import make_rng
+from .common.rng import make_rng
 
 
 @dataclass
@@ -83,6 +83,8 @@ class Bank:
         """Check for defaulted loans. Returns list of defaulted loan indices."""
         defaulted = []
         for i, loan in enumerate(self.loans):
+            if loan['remaining'] <= 0:
+                continue  # Already processed
             coop = coops[loan['coop_id']]
             # Simple default trigger: co-op account negative or severely underwater
             if coop.account < -loan['remaining'] * 0.1:
@@ -97,6 +99,8 @@ class Bank:
         self.losses += loan['remaining'] - recovery
         self.capital += recovery
         loan['remaining'] = 0
+        # Mark as processed by setting a flag
+        loan['defaulted'] = True
         return recovery
 
     def adjust_terms(self, recent_price_growth: float, recent_losses: float) -> None:

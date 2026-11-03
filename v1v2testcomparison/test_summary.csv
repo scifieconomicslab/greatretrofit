@@ -1,0 +1,54 @@
+model,test_file,test_name,description,status
+v1,test_invariants.py,test_surplus_grows_capital[100-1-50000-5-0.1],Surplus > 0 grows capital when completed,PASSED
+v1,test_invariants.py,test_surplus_grows_capital[500-5-100000-20-0.2],Surplus > 0 grows capital when completed,PASSED
+v1,test_invariants.py,test_surplus_grows_capital[1000-10-200000-50-0.3],Surplus > 0 grows capital when completed,PASSED
+v1,test_invariants.py,test_monotonic_finished,Finished count never decreases,PASSED
+v1,test_invariants.py,test_to_do_monotonic_decrease,To-do count never increases,PASSED
+v1,test_invariants.py,test_queued_nonnegative,Queued count never negative,PASSED
+v1,test_invariants.py,test_in_progress_nonnegative,In-progress count never negative,PASSED
+v1,test_invariants.py,test_total_accounts_nonnegative,Total accounts never negative,PASSED
+v1,test_invariants.py,test_finished_bounded_by_n,Finished ≤ total buildings,PASSED
+v1,test_invariants.py,test_weekly_arrays_same_length,All weekly arrays same length,PASSED
+v1,test_invariants.py,test_total_weeks_matches_array_length,Total weeks matches array length,PASSED
+v1,test_invariants.py,test_final_accounts_matches_last_weekly,Final accounts = last weekly total,PASSED
+v1,test_v1_basics.py,test_v1_params_creation,Params dataclass instantiation,PASSED
+v1,test_v1_basics.py,test_v1_params_validation,Parameter validation (positive, probability, integer),PASSED
+v1,test_v1_basics.py,test_v1_run_returns_result,run_simulation returns Result with all fields,PASSED
+v1,test_v1_basics.py,test_v1_seed_reproducibility,Same seed → identical trajectories,PASSED
+v1,test_v1_basics.py,test_v1_mass_conservation,to_do + queued + in_progress + finished = n every week,PASSED
+v1,test_v1_basics.py,test_v1_no_negative_accounts,Total accounts never negative,PASSED
+v1,test_v1_basics.py,test_v1_finished_monotonic,Finished count monotonically increasing,PASSED
+v1,test_v1_basics.py,test_v1_to_do_monotonic_decrease,To-do count monotonically decreasing,PASSED
+v1,test_v1_basics.py,test_v1_queued_nonnegative,Queued count never negative,PASSED
+v1,test_v1_basics.py,test_v1_completes_all_buildings_eventually,With sufficient resources, all buildings complete,PASSED
+v2,test_v2_basics.py,test_v2_params_creation,Extended Params with all v2 fields,PASSED
+v2,test_v2_basics.py,test_v2_run_returns_result,run_simulation returns Result with v2 monitors,PASSED
+v2,test_v2_basics.py,test_v2_seed_reproducibility,Same seed → identical trajectories,PASSED
+v2,test_v2_basics.py,test_v2_mass_conservation,Mass conservation holds with heterogeneous agents,PASSED
+v2,test_v2_basics.py,test_v2_no_negative_accounts,Total accounts never negative,PASSED
+v2,test_v2_basics.py,test_v2_gini_wealth_bounds,Gini wealth in [0, 1],PASSED
+v2,test_v2_financial.py,test_v2_bargaining,Bargaining parameters accepted, negotiations work,PASSED
+v2,test_v2_financial.py,test_v2_banks_exist,Bank parameters accepted, bank monitors present,PASSED
+v2,test_v2_financial.py,test_v2_default_possible,Default can occur with low capital,PASSED
+v2,test_v2_market.py,test_v2_local_demand_signals,Neighbourhood time-on-market tracking works,PASSED
+v2,test_v2_market.py,test_v2_income_process,AR(1) income + unemployment parameters accepted,PASSED
+v2,test_v2_market.py,test_v2_investor_market,Investor parameters accepted, monitor present,PASSED
+v2,test_v2_market.py,test_v2_stock_evolution,Construction parameters accepted, monitor present,PASSED
+v2,test_v2_market.py,test_v2_demographics,Birth/death parameters accepted, population trajectory,PASSED
+v2,test_v2_monitors.py,test_v2_gini_wealth,Gini wealth + trajectory computed,PASSED
+v2,test_v2_monitors.py,test_v2_price_dispersion,Within/between neighbourhood price dispersion,PASSED
+v2,test_v2_monitors.py,test_v2_cash_buyer_share,Cash buyer share in [0, 1],PASSED
+v2,test_v2_monitors.py,test_v2_time_on_market_spread,Time-on-market spread ≥ 0,PASSED
+v2,test_v2_monitors.py,test_v2_bank_monitors,Bank losses, defaults, loan volume tracked,PASSED
+v2,test_v2_monitors.py,test_v2_investor_monitor,Investor purchases tracked,PASSED
+v2,test_v2_monitors.py,test_v2_construction_monitor,New construction count tracked,PASSED
+v2,test_v2_monitors.py,test_v2_population_monitor,Population trajectory tracked,PASSED
+v2,test_v2_monitors.py,test_v2_income_trajectory_monitor,Household income trajectories recorded,PASSED
+v2,test_v1_v2_comparison.py,test_v2_slower_with_heterogeneity,v2 slower than v1 due to search/bargaining,PASSED
+v2,test_v1_v2_comparison.py,test_v2_higher_final_capital_with_surplus,Both versions grow capital with surplus > 0,PASSED
+v2,test_v1_v2_comparison.py,test_v2_produces_gini_v1_does_not,v2 has Gini monitor, v1 does not,PASSED
+v2,test_v1_v2_comparison.py,test_v2_local_demand_creates_dispersion,v2 with neighbourhoods shows price dispersion,PASSED
+v2,test_v1_v2_comparison.py,test_v1_mass_conservation_vs_v2,Both versions conserve mass,PASSED
+v2,test_v1_v2_comparison.py,test_v1_seed_reproducibility_vs_v2,Both versions reproducible with same seed,PASSED
+v2,test_v1_v2_comparison.py,test_v1_snapshot,v1 baseline snapshot captured,PASSED
+v2,test_v1_v2_comparison.py,test_v2_snapshot,v2 baseline snapshot captured,PASSED

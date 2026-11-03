@@ -5,7 +5,7 @@ from typing import List, Optional, Dict
 
 from .params import Params
 from .banks import Bank
-from common.rng import make_rng
+from .common.rng import make_rng
 
 
 @dataclass
@@ -35,8 +35,11 @@ class Coop:
         current_committed = sum(
             building_map[p_id].retrofit_cost for p_id in self.projects
         )
-        # Include weekly loan payments in cash flow check
-        weekly_outflow = len(self.projects) * week_cost + self.loan_payments
+        # Calculate actual weekly outflow for current projects (scaled by size)
+        weekly_outflow = sum(
+            building_map[p_id].retrofit_cost / building_map[p_id].retrofit_time
+            for p_id in self.projects if building_map[p_id].retrofit_time > 0
+        ) + self.loan_payments
         # Project annual cash flow
         annual_outflow = weekly_outflow * 52
         # Payment-to-income cap: payments shouldn't exceed 30% of revenue
@@ -50,9 +53,12 @@ class Coop:
         """Get Building objects for current projects."""
         return [building_map[p_id] for p_id in self.projects if p_id in building_map]
 
-    def weekly_cost(self, week_cost: float) -> float:
-        """Total weekly cost for all active projects."""
-        return len(self.projects) * week_cost
+    def weekly_cost(self, building_map: Dict[int, 'Building']) -> float:
+        """Total weekly cost for all active projects (actual cost per project)."""
+        return sum(
+            building_map[p_id].retrofit_cost / building_map[p_id].retrofit_time
+            for p_id in self.projects if building_map[p_id].retrofit_time > 0
+        )
 
     def request_loan(self, project_cost: float, banks: List[Bank],
                      building_map: Dict[int, 'Building'], rng: np.random.Generator) -> Optional[dict]:

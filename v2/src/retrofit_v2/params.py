@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from common.validation import (
+from .common.validation import (
     validate_positive,
     validate_nonnegative,
     validate_probability,

@@ -9,7 +9,7 @@ from .households import Household, create_households
 from .buildings import Building, create_buildings, create_new_building, depreciate_buildings
 from .coops import Coop, create_coops
 from .banks import Bank, create_banks
-from common.rng import make_rng
+from .common.rng import make_rng
 
 
 def gini_coefficient(values: np.ndarray) -> float:
@@ -67,6 +67,33 @@ def run_simulation(params: Params) -> Result:
     weekly_total_accounts = np.zeros(max_weeks, dtype=float)
     weekly_with_capacity = np.zeros(max_weeks, dtype=int)
 
+    # Additional weekly time series
+    weekly_failed_negotiations = np.zeros(max_weeks, dtype=int)
+    weekly_defaults = np.zeros(max_weeks, dtype=int)
+    weekly_cumulative_defaults = np.zeros(max_weeks, dtype=int)
+    weekly_investor_purchases = np.zeros(max_weeks, dtype=int)
+    weekly_new_construction = np.zeros(max_weeks, dtype=int)
+    weekly_avg_queue_wait = np.zeros(max_weeks, dtype=float)
+    weekly_max_queue_wait = np.zeros(max_weeks, dtype=int)
+    weekly_bank_losses = np.zeros(max_weeks, dtype=float)
+    weekly_cumulative_bank_losses = np.zeros(max_weeks, dtype=float)
+    weekly_loan_volume = np.zeros(max_weeks, dtype=float)
+    weekly_loan_payments = np.zeros(max_weeks, dtype=float)
+    weekly_coop_revenue = np.zeros(max_weeks, dtype=float)
+    weekly_unemployment_rate = np.zeros(max_weeks, dtype=float)
+    weekly_avg_retrofit_time = np.zeros(max_weeks, dtype=float)
+    weekly_avg_retrofit_cost = np.zeros(max_weeks, dtype=float)
+
+    # Per-neighbourhood weekly
+    if params.n_neighbourhoods > 1:
+        weekly_finished_per_nh = np.zeros((params.n_neighbourhoods, max_weeks), dtype=int)
+        weekly_queue_per_nh = np.zeros((params.n_neighbourhoods, max_weeks), dtype=int)
+        weekly_avg_price_per_nh = np.zeros((params.n_neighbourhoods, max_weeks), dtype=float)
+    else:
+        weekly_finished_per_nh = None
+        weekly_queue_per_nh = None
+        weekly_avg_price_per_nh = None
+
     # v2 monitors
     weekly_gini = np.zeros(max_weeks, dtype=float)
     weekly_income_gini = np.zeros(max_weeks, dtype=float)
@@ -85,6 +112,7 @@ def run_simulation(params: Params) -> Result:
     total_purchases = 0
     investor_purchases = 0
     new_construction_count = 0
+    total_finished_count = 0  # Total buildings that have ever completed retrofit
 
     # Income trajectories (sample subset for memory)
     income_sample_size = min(100, params.n_households)
@@ -124,8 +152,31 @@ def run_simulation(params: Params) -> Result:
             for idx, h_id in enumerate(sample_household_ids):
                 household_income_trajectories[idx, t] = households[h_id].income
 
+            # Unemployment rate
+            unemployed = sum(1 for h in households.values() if h.unemployed)
+            weekly_unemployment_rate[t] = unemployed / n_households
+
         # Population
         population_trajectory[t] = len(households)
+
+        # Queue wait times
+        if len(queued) > 0:
+            wait_times = [t - building_entry_week[b_id] for b_id in queued]
+            weekly_avg_queue_wait[t] = np.mean(wait_times)
+            weekly_max_queue_wait[t] = max(wait_times)
+
+        # Co-op metrics
+        weekly_coop_revenue[t] = sum(c.total_revenue for c in coops)
+
+        # Per-neighbourhood queue
+        if params.n_neighbourhoods > 1:
+            for nh in range(params.n_neighbourhoods):
+                nh_queue = [b_id for b_id in queued if building_map[b_id].neighbourhood == nh]
+                weekly_queue_per_nh[nh, t] = len(nh_queue)
+
+        # Bank metrics
+        weekly_bank_losses[t] = sum(b.losses for b in banks)
+        weekly_cumulative_bank_losses[t] = sum(b.losses for b in banks)
 
         # 1. Households decide to request retrofits
         if to_do:
@@ -186,6 +237,7 @@ def run_simulation(params: Params) -> Result:
                     building.state = 'queued'
                     building.assigned_coop = None
                     queued.append(building.id)
+                    weekly_failed_negotiations[t] += 1
                     continue
 
                 building.negotiated_price = bid
@@ -215,6 +267,8 @@ def run_simulation(params: Params) -> Result:
 
             for p_id in copy.deepcopy(coop.projects):
                 building = building_map[p_id]
+                # Calculate actual weekly cost for this building
+                weekly_cost = building.retrofit_cost / building.retrofit_time if building.retrofit_time > 0 else 0
                 if building.weeks_remaining <= 0:
                     # Project complete
                     coop.projects.remove(p_id)
@@ -222,6 +276,21 @@ def run_simulation(params: Params) -> Result:
                     building.state = 'finished'
                     building.assigned_coop = None
                     finished.append(p_id)
+                    total_finished_count += 1
+
+                    # Record average retrofit time/cost for this week
+                    weekly_avg_retrofit_time[t] = building.retrofit_time
+                    weekly_avg_retrofit_cost[t] = building.retrofit_cost
+
+                    # Per-neighbourhood finished
+                    if params.n_neighbourhoods > 1:
+                        nh = building.neighbourhood
+                        weekly_finished_per_nh[nh, t] += 1
+                        # Track prices for average
+                        if weekly_avg_price_per_nh[nh, t] == 0:
+                            weekly_avg_price_per_nh[nh, t] = building.retrofit_cost
+                        else:
+                            weekly_avg_price_per_nh[nh, t] = (weekly_avg_price_per_nh[nh, t] + building.retrofit_cost) / 2
 
                     # Co-op receives payment with surplus
                     price = getattr(building, 'negotiated_price', building.retrofit_cost)
@@ -235,9 +304,9 @@ def run_simulation(params: Params) -> Result:
                         owner.wealth = max(0, owner.wealth - price)
                 else:
                     # Work in progress
-                    if coop.account >= params.week_cost:
+                    if coop.account >= weekly_cost:
                         building.weeks_remaining -= 1
-                        coop.account -= params.week_cost
+                        coop.account -= weekly_cost
 
         # 4. Bank default processing
         if params.enable_default and params.n_banks > 0:
@@ -247,6 +316,14 @@ def run_simulation(params: Params) -> Result:
                     bank.process_default(loan_idx)
                     default_count += 1
 
+        # Record weekly financial metrics
+        weekly_defaults[t] = default_count
+        weekly_cumulative_defaults[t] = default_count
+        weekly_bank_losses[t] = sum(b.losses for b in banks)
+        weekly_cumulative_bank_losses[t] = sum(b.losses for b in banks)
+        weekly_loan_volume[t] = total_loan_volume
+        weekly_loan_payments[t] = sum(c.loan_payments for c in coops)
+
         # 5. Income process update
         if params.income_ar1_rho > 0:
             for h in households.values():
@@ -254,16 +331,21 @@ def run_simulation(params: Params) -> Result:
 
         # 6. Investor market activity
         if params.enable_investors:
+            # Track which buildings have been purchased this week to avoid double-sales
+            purchased_this_week = set()
             for h in list(households.values()):
                 if h.is_investor:
                     # Check finished buildings for investment opportunities
                     for b_id in finished:
+                        if b_id in purchased_this_week:
+                            continue  # Already purchased this week
                         building = building_map[b_id]
                         if building.owner_id == h.id:
                             continue  # Already own
                         if h.wants_investment(building, params, rng):
                             # Investor purchases building
                             investor_purchases += 1
+                            purchased_this_week.add(b_id)
                             # Transfer ownership
                             old_owner = households.get(building.owner_id)
                             if old_owner:
@@ -272,6 +354,12 @@ def run_simulation(params: Params) -> Result:
                             h.building_id = b_id
                             # Pay price
                             h.wealth -= building.retrofit_cost
+                            # Remove from finished list - no longer available for re-purchase
+                            if b_id in finished:
+                                finished.remove(b_id)
+
+            # Record weekly investor purchases
+            weekly_investor_purchases[t] = investor_purchases
 
         # 7. Demographics: births, deaths, household formation
         if params.enable_demographics:
@@ -366,6 +454,9 @@ def run_simulation(params: Params) -> Result:
                             to_do.append(new_b.id)
                             new_construction_count += 1
 
+        # Record weekly new construction
+        weekly_new_construction[t] = new_construction_count
+
         t += 1
 
         if len(finished) == params.n and not params.enable_construction:
@@ -437,12 +528,13 @@ def run_simulation(params: Params) -> Result:
         weekly_finished=weekly_finished[:actual_weeks],
         weekly_total_accounts=weekly_total_accounts[:actual_weeks],
         weekly_with_capacity=weekly_with_capacity[:actual_weeks],
-        finished=len(finished),
+        finished=total_finished_count,
         total_weeks=actual_weeks,
         final_total_accounts=sum(c.account for c in coops),
         params=params,
         gini_wealth=gini_wealth,
         gini_wealth_trajectory=weekly_gini[:actual_weeks],
+        weekly_income_gini=weekly_income_gini[:actual_weeks],
         price_dispersion=price_dispersion,
         price_dispersion_within=price_dispersion_within,
         price_dispersion_between=price_dispersion_between,
@@ -456,4 +548,24 @@ def run_simulation(params: Params) -> Result:
         investor_purchases=investor_purchases,
         new_construction_count=new_construction_count,
         population_trajectory=population_trajectory[:actual_weeks],
+        # Additional weekly time series
+        weekly_failed_negotiations=weekly_failed_negotiations[:actual_weeks],
+        weekly_defaults=weekly_defaults[:actual_weeks],
+        weekly_cumulative_defaults=weekly_cumulative_defaults[:actual_weeks],
+        weekly_investor_purchases=weekly_investor_purchases[:actual_weeks],
+        weekly_new_construction=weekly_new_construction[:actual_weeks],
+        weekly_avg_queue_wait=weekly_avg_queue_wait[:actual_weeks],
+        weekly_max_queue_wait=weekly_max_queue_wait[:actual_weeks],
+        weekly_bank_losses=weekly_bank_losses[:actual_weeks],
+        weekly_cumulative_bank_losses=weekly_cumulative_bank_losses[:actual_weeks],
+        weekly_loan_volume=weekly_loan_volume[:actual_weeks],
+        weekly_loan_payments=weekly_loan_payments[:actual_weeks],
+        weekly_coop_revenue=weekly_coop_revenue[:actual_weeks],
+        weekly_unemployment_rate=weekly_unemployment_rate[:actual_weeks],
+        weekly_avg_retrofit_time=weekly_avg_retrofit_time[:actual_weeks],
+        weekly_avg_retrofit_cost=weekly_avg_retrofit_cost[:actual_weeks],
+        # Per-neighbourhood weekly
+        weekly_finished_per_nh=weekly_finished_per_nh[:, :actual_weeks] if weekly_finished_per_nh is not None else None,
+        weekly_queue_per_nh=weekly_queue_per_nh[:, :actual_weeks] if weekly_queue_per_nh is not None else None,
+        weekly_avg_price_per_nh=weekly_avg_price_per_nh[:, :actual_weeks] if weekly_avg_price_per_nh is not None else None,
     )

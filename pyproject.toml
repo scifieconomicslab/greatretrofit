@@ -32,5 +32,5 @@ python_functions = ["test_*"]
 addopts = "-v --strict-markers"
 
 [tool.setuptools.packages.find]
-where = ["v1/src", "v2/src", "common/src"]
-include = ["retrofit_v1*", "retrofit_v2*", "common*"]
+where = ["v1/src", "v2/src"]
+include = ["retrofit_v1*", "retrofit_v2*"]

@@ -5,7 +5,7 @@ from typing import List
 
 from .params import Params
 from .results import Result
-from common.rng import make_rng
+from .common.rng import make_rng
 
 
 def run_simulation(params: Params) -> Result:
