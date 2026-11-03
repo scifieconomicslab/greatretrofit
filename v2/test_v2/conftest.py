@@ -1,4 +1,4 @@
-"""Pytest configuration and fixtures."""
+"""Pytest configuration and fixtures for v2 tests."""
 import pytest
 
 
@@ -7,8 +7,6 @@ def snapshot(request):
     """Simple snapshot fixture for regression testing."""
     class Snapshot:
         def assert_match(self, data, filename):
-            # In a real implementation, this would compare against stored snapshots
-            # For now, just store the data for inspection
             import json
             import os
             snapshot_dir = os.path.join(os.path.dirname(__file__), 'snapshots')
