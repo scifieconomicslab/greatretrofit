@@ -21,6 +21,12 @@ class Household:
         taste_shock: Random taste shock for each building.
         neighbourhood: Neighbourhood index.
         building_id: ID of owned building (if any).
+        age: Age of household head.
+        is_investor: Whether this household is an investor/landlord.
+        hurdle_rate: Required return for investment (if investor).
+        expectations_type: 'extrapolator' or 'fundamentalist'.
+        unemployed: Whether currently unemployed.
+        income_history: List of past income values.
     """
     id: int
     income: float
@@ -31,6 +37,12 @@ class Household:
     taste_shock: float
     neighbourhood: int
     building_id: Optional[int] = None
+    age: int = 30
+    is_investor: bool = False
+    hurdle_rate: float = 0.05
+    expectations_type: str = 'fundamentalist'
+    unemployed: bool = False
+    income_history: List[float] = field(default_factory=list)
 
     def wants_retrofit(self, rng: np.random.Generator) -> bool:
         """Decide whether to request a retrofit this week."""
@@ -79,6 +91,70 @@ class Household:
         """Minimum price household would accept as seller (not used for owners, but for symmetry)."""
         return asking_price * params.seller_reservation_pct
 
+    def update_income(self, params: 'Params', rng: np.random.Generator) -> None:
+        """Update income based on AR(1) process with unemployment shocks.
+
+        Args:
+            params: Simulation parameters.
+            rng: Random number generator.
+        """
+        if params.income_ar1_rho == 0:
+            return
+
+        # Record current income
+        self.income_history.append(self.income)
+
+        # Unemployment shock
+        if not self.unemployed and rng.random() < params.unemployment_prob:
+            self.unemployed = True
+            self.income *= 0.3  # Unemployment benefit ~30% of income
+        elif self.unemployed and rng.random() < 0.1:  # 10% chance to find job per week
+            self.unemployed = False
+            # Income recovers with AR(1) process
+            log_income = np.log(self.income)
+            shock = rng.normal(0, params.income_shock_sd)
+            log_income = params.income_ar1_rho * log_income + (1 - params.income_ar1_rho) * np.log(params.income_mean) + shock
+            self.income = np.exp(log_income)
+        elif not self.unemployed:
+            # Normal AR(1) income process
+            log_income = np.log(self.income)
+            shock = rng.normal(0, params.income_shock_sd)
+            log_income = params.income_ar1_rho * log_income + (1 - params.income_ar1_rho) * np.log(params.income_mean) + shock
+            self.income = np.exp(log_income)
+
+    def wants_investment(self, building: 'Building', params: 'Params', rng: np.random.Generator) -> bool:
+        """Decide whether to purchase building as investment.
+
+        Args:
+            building: Building to evaluate.
+            params: Simulation parameters.
+            rng: Random number generator.
+
+        Returns:
+            True if household wants to invest.
+        """
+        if not params.enable_investors or not self.is_investor:
+            return False
+
+        # Expected rental yield
+        # Simplified: rent = 5% of building value per year
+        rent = building.retrofit_cost * 0.05
+        yield_rate = rent / building.retrofit_cost
+
+        # Adjust expectations
+        if self.expectations_type == 'extrapolator':
+            # Extrapolate recent price growth (simplified)
+            expected_growth = 0.02  # 2% annual
+        else:
+            expected_growth = 0.0
+
+        expected_return = yield_rate + expected_growth
+        return expected_return > self.hurdle_rate
+
+    def age_one_week(self) -> None:
+        """Age the household by one week."""
+        self.age += 1 / 52.0
+
 
 def create_households(params: Params, rng: np.random.Generator) -> List[Household]:
     """Create all households with heterogeneous attributes.
@@ -93,15 +169,11 @@ def create_households(params: Params, rng: np.random.Generator) -> List[Househol
     n = params.n_households
 
     # Income: lognormal with given mean and CV
-    # For lognormal: mean = exp(mu + sigma^2/2), CV = sqrt(exp(sigma^2) - 1)
-    # Solve for mu, sigma
     sigma = np.sqrt(np.log(1 + params.income_cv**2))
     mu = np.log(params.income_mean) - sigma**2 / 2
     incomes = rng.lognormal(mu, sigma, n)
 
     # Wealth: Pareto distribution (independent of income)
-    # Pareto: x_m * (1 - U)^(-1/alpha), where x_m is scale
-    # Use income_mean/10 as scale for reasonable magnitude
     wealth_scale = params.income_mean / 10.0
     u = rng.random(n)
     wealths = wealth_scale * (1 - u)**(-1.0 / params.wealth_pareto_alpha)
@@ -123,6 +195,23 @@ def create_households(params: Params, rng: np.random.Generator) -> List[Househol
     # Neighbourhood assignment
     neighbourhoods = rng.integers(0, params.n_neighbourhoods, n)
 
+    # Ages: uniform 25-75
+    ages = rng.integers(25, 75, n)
+
+    # Investor status
+    is_investor = rng.random(n) < 0.15  # 15% are investors
+
+    # Hurdle rates for investors
+    hurdle_rates = rng.normal(params.investor_hurdle_mean, params.investor_hurdle_sd, n)
+    hurdle_rates = np.clip(hurdle_rates, 0.02, 0.15)
+
+    # Expectations type
+    expectations = np.where(
+        rng.random(n) < params.extrapolator_share,
+        'extrapolator',
+        'fundamentalist'
+    )
+
     households = []
     for i in range(n):
         h = Household(
@@ -134,7 +223,12 @@ def create_households(params: Params, rng: np.random.Generator) -> List[Househol
             taste_weights=taste_weights[i],
             taste_shock=taste_shocks[i],
             neighbourhood=neighbourhoods[i],
+            age=ages[i],
+            is_investor=is_investor[i],
+            hurdle_rate=hurdle_rates[i],
+            expectations_type=expectations[i],
         )
+        h.income_history.append(incomes[i])
         households.append(h)
 
     return households

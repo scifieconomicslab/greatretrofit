@@ -77,6 +77,38 @@ class Params:
     # Default parameters
     enable_default: bool = False
 
+    # Local demand parameters
+    enable_local_demand: bool = False
+
+    # Income process parameters
+    income_ar1_rho: float = 0.0  # 0 = no AR(1) process
+    income_shock_sd: float = 0.0
+    unemployment_prob: float = 0.0
+
+    # Investor market parameters
+    enable_investors: bool = False
+    investor_hurdle_mean: float = 0.05
+    investor_hurdle_sd: float = 0.01
+
+    # Stock evolution parameters
+    enable_construction: bool = False
+    build_cost: float = 150000.0
+    construction_lag_weeks: int = 52
+    depreciation_rate: float = 0.01  # Annual
+
+    # Demographics parameters
+    enable_demographics: bool = False
+    birth_rate: float = 0.01
+    death_rate: float = 0.01
+
+    # Expectations parameters
+    enable_heterogeneous_expectations: bool = False
+    extrapolator_share: float = 0.5
+
+    # Transaction costs
+    transaction_cost_pct: float = 0.05
+    moving_cost: float = 10000.0
+
     def __post_init__(self) -> None:
         # Base validation
         validate_integer_positive(self.n, "n")
@@ -118,3 +150,33 @@ class Params:
             validate_nonnegative(self.bank_ltv_sd, "bank_ltv_sd")
             validate_nonnegative(self.bank_spread_mean, "bank_spread_mean")
             validate_nonnegative(self.bank_spread_sd, "bank_spread_sd")
+
+        # Income process validation
+        if self.income_ar1_rho > 0:
+            validate_probability(self.income_ar1_rho, "income_ar1_rho")
+            validate_nonnegative(self.income_shock_sd, "income_shock_sd")
+            validate_probability(self.unemployment_prob, "unemployment_prob")
+
+        # Investor validation
+        if self.enable_investors:
+            validate_positive(self.investor_hurdle_mean, "investor_hurdle_mean")
+            validate_nonnegative(self.investor_hurdle_sd, "investor_hurdle_sd")
+
+        # Construction validation
+        if self.enable_construction:
+            validate_positive(self.build_cost, "build_cost")
+            validate_integer_positive(self.construction_lag_weeks, "construction_lag_weeks")
+            validate_nonnegative(self.depreciation_rate, "depreciation_rate")
+
+        # Demographics validation
+        if self.enable_demographics:
+            validate_probability(self.birth_rate, "birth_rate")
+            validate_probability(self.death_rate, "death_rate")
+
+        # Expectations validation
+        if self.enable_heterogeneous_expectations:
+            validate_probability(self.extrapolator_share, "extrapolator_share")
+
+        # Transaction costs validation
+        validate_probability(self.transaction_cost_pct, "transaction_cost_pct")
+        validate_nonnegative(self.moving_cost, "moving_cost")

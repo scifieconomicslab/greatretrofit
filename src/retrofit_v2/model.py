@@ -6,7 +6,7 @@ from typing import List, Dict, Optional
 from .params import Params
 from .results import Result
 from .households import Household, create_households
-from .buildings import Building, create_buildings
+from .buildings import Building, create_buildings, create_new_building, depreciate_buildings
 from .coops import Coop, create_coops
 from .banks import Bank, create_banks
 from common.rng import make_rng
@@ -33,9 +33,10 @@ def run_simulation(params: Params) -> Result:
     """
     rng = make_rng(params.seed)
 
-    # Create agents
-    households = create_households(params, rng)
-    buildings = create_buildings(params, households, rng)
+    # Create agents - households as dict keyed by ID for stable references
+    household_list = create_households(params, rng)
+    households: Dict[int, Household] = {h.id: h for h in household_list}
+    buildings = create_buildings(params, household_list, rng)
     coops = create_coops(params)
     banks = create_banks(params, rng)
 
@@ -58,6 +59,7 @@ def run_simulation(params: Params) -> Result:
 
     # v2 monitors
     weekly_gini = np.zeros(max_weeks, dtype=float)
+    weekly_income_gini = np.zeros(max_weeks, dtype=float)
     if params.n_neighbourhoods > 1:
         neighbourhood_time_on_market = np.zeros((params.n_neighbourhoods, max_weeks), dtype=float)
     else:
@@ -71,6 +73,19 @@ def run_simulation(params: Params) -> Result:
     default_count = 0
     cash_purchases = 0
     total_purchases = 0
+    investor_purchases = 0
+    new_construction_count = 0
+
+    # Income trajectories (sample subset for memory)
+    income_sample_size = min(100, params.n_households)
+    household_income_trajectories = np.zeros((income_sample_size, max_weeks), dtype=float)
+
+    # Population trajectory
+    population_trajectory = np.zeros(max_weeks, dtype=int)
+
+    # Next building ID for new construction
+    next_building_id = params.n
+    next_household_id = params.n_households
 
     t = 0
     while t < params.run_time:
@@ -82,16 +97,33 @@ def run_simulation(params: Params) -> Result:
         weekly_total_accounts[t] = sum(c.account for c in coops)
 
         # Calculate Gini of household wealth
-        wealths = np.array([h.wealth for h in households])
+        wealths = np.array([h.wealth for h in households.values()])
         weekly_gini[t] = gini_coefficient(wealths)
+
+        # Calculate Gini of household income (sample)
+        n_households = len(households)
+        if n_households > 0:
+            sample_size = min(income_sample_size, n_households)
+            household_ids = list(households.keys())
+            sample_idx = rng.choice(len(household_ids), sample_size, replace=False)
+            sample_household_ids = [household_ids[i] for i in sample_idx]
+            incomes_sample = np.array([households[h_id].income for h_id in sample_household_ids])
+            weekly_income_gini[t] = gini_coefficient(incomes_sample)
+
+            # Record income trajectories
+            for idx, h_id in enumerate(sample_household_ids):
+                household_income_trajectories[idx, t] = households[h_id].income
+
+        # Population
+        population_trajectory[t] = len(households)
 
         # 1. Households decide to request retrofits
         if to_do:
             requesting = []
             for b_id in to_do:
                 building = building_map[b_id]
-                owner = households[building.owner_id]
-                if owner.wants_retrofit(rng):
+                owner = households.get(building.owner_id)
+                if owner and owner.wants_retrofit(rng):
                     requesting.append(b_id)
 
             for b_id in requesting:
@@ -110,7 +142,6 @@ def run_simulation(params: Params) -> Result:
 
             # Determine eligible co-ops
             if params.search_length > 0 and params.search_length < params.n_co_ops:
-                # Limited search: household sees random sample of co-ops
                 search_pool = rng.choice(params.n_co_ops, size=params.search_length, replace=False)
             else:
                 search_pool = list(range(params.n_co_ops))
@@ -135,8 +166,8 @@ def run_simulation(params: Params) -> Result:
             building.weeks_remaining = building.retrofit_time
 
             # Bargaining: household bids below asking price
-            owner = households[building.owner_id]
-            if params.enable_bargaining:
+            owner = households.get(building.owner_id)
+            if owner and params.enable_bargaining:
                 bid = owner.bid_price(building.retrofit_cost, params, rng)
                 reservation = building.retrofit_cost * params.seller_reservation_pct
                 if bid < reservation:
@@ -147,14 +178,13 @@ def run_simulation(params: Params) -> Result:
                     queued.append(building.id)
                     continue
 
-                # Successful negotiation at bid price
                 building.negotiated_price = bid
             else:
                 building.negotiated_price = building.retrofit_cost
 
             # Co-op may request loan for the project
             total_purchases += 1
-            if params.n_banks > 0 and rng.random() < 0.5:  # 50% chance to seek financing
+            if params.n_banks > 0 and rng.random() < 0.5:
                 loan_terms = coop.request_loan(building.negotiated_price, banks, building_map, rng)
                 if loan_terms:
                     total_loan_volume += loan_terms['amount']
@@ -170,7 +200,6 @@ def run_simulation(params: Params) -> Result:
 
         # 3. Co-ops do work on projects and make loan payments
         for coop in coops:
-            # Make loan payments first
             if params.n_banks > 0:
                 coop.make_loan_payments(banks)
 
@@ -191,8 +220,9 @@ def run_simulation(params: Params) -> Result:
                     coop.total_revenue += revenue
 
                     # Household pays (wealth decreases by negotiated price)
-                    owner = households[building.owner_id]
-                    owner.wealth = max(0, owner.wealth - price)
+                    owner = households.get(building.owner_id)
+                    if owner:
+                        owner.wealth = max(0, owner.wealth - price)
                 else:
                     # Work in progress
                     if coop.account >= params.week_cost:
@@ -207,9 +237,128 @@ def run_simulation(params: Params) -> Result:
                     bank.process_default(loan_idx)
                     default_count += 1
 
+        # 5. Income process update
+        if params.income_ar1_rho > 0:
+            for h in households.values():
+                h.update_income(params, rng)
+
+        # 6. Investor market activity
+        if params.enable_investors:
+            for h in list(households.values()):
+                if h.is_investor:
+                    # Check finished buildings for investment opportunities
+                    for b_id in finished:
+                        building = building_map[b_id]
+                        if building.owner_id == h.id:
+                            continue  # Already own
+                        if h.wants_investment(building, params, rng):
+                            # Investor purchases building
+                            investor_purchases += 1
+                            # Transfer ownership
+                            old_owner = households.get(building.owner_id)
+                            if old_owner:
+                                old_owner.building_id = None
+                            building.owner_id = h.id
+                            h.building_id = b_id
+                            # Pay price
+                            h.wealth -= building.retrofit_cost
+
+        # 7. Demographics: births, deaths, household formation
+        if params.enable_demographics:
+            # Deaths
+            dead_household_ids = []
+            for h_id, h in list(households.items()):
+                death_prob = params.death_rate / 52.0  # Weekly probability
+                if h.age > 65:
+                    death_prob *= 3  # Higher for elderly
+                if rng.random() < death_prob:
+                    dead_household_ids.append(h_id)
+                    # Household dies - building becomes available
+                    if h.building_id is not None:
+                        building = building_map[h.building_id]
+                        building.owner_id = -1
+                        building.state = 'to_do'
+                        if building.id not in to_do:
+                            to_do.append(building.id)
+
+            for h_id in dead_household_ids:
+                del households[h_id]
+
+            # Births / new household formation
+            births = rng.poisson(len(households) * params.birth_rate / 52.0)
+            for _ in range(births):
+                # New household with random attributes
+                new_id = next_household_id
+                next_household_id += 1
+                sigma = np.sqrt(np.log(1 + params.income_cv**2))
+                mu = np.log(params.income_mean) - sigma**2 / 2
+                income = rng.lognormal(mu, sigma)
+                wealth = params.income_mean / 10.0 * (1 - rng.random())**(-1.0 / params.wealth_pareto_alpha)
+                aspiration = np.clip(rng.normal(params.aspiration_mean, params.aspiration_sd), 0, 100)
+                affordability = np.clip(rng.normal(0.33, 0.1), 0.05, 0.6)
+                taste_weights = rng.dirichlet([2.0, 2.0, 2.0])
+                taste_shock = rng.normal(0, 0.5)
+                neighbourhood = rng.integers(0, params.n_neighbourhoods)
+                age = 25
+                is_investor = rng.random() < 0.15
+                hurdle_rate = np.clip(rng.normal(params.investor_hurdle_mean, params.investor_hurdle_sd), 0.02, 0.15)
+                expectations_type = 'extrapolator' if rng.random() < params.extrapolator_share else 'fundamentalist'
+
+                new_h = Household(
+                    id=new_id,
+                    income=income,
+                    wealth=wealth,
+                    aspiration=aspiration,
+                    affordability=affordability,
+                    taste_weights=taste_weights,
+                    taste_shock=taste_shock,
+                    neighbourhood=neighbourhood,
+                    age=age,
+                    is_investor=is_investor,
+                    hurdle_rate=hurdle_rate,
+                    expectations_type=expectations_type,
+                )
+                new_h.income_history.append(income)
+                households[new_id] = new_h
+
+        # 8. Building depreciation
+        if params.depreciation_rate > 0:
+            depreciate_buildings(list(building_map.values()), params, dt=1/52.0)
+
+        # 9. New construction
+        if params.enable_construction:
+            # Check if price > build cost in any neighbourhood
+            if params.n_neighbourhoods > 1:
+                for nh in range(params.n_neighbourhoods):
+                    nh_finished = [b_id for b_id in finished
+                                  if building_map[b_id].neighbourhood == nh]
+                    if len(nh_finished) > 10:
+                        prices = [building_map[b_id].retrofit_cost for b_id in nh_finished]
+                        avg_price = np.mean(prices)
+                        if avg_price > params.build_cost * 1.2:  # 20% premium triggers construction
+                            if rng.random() < 0.1:  # 10% chance per week
+                                new_b = create_new_building(params, nh, rng, next_building_id)
+                                next_building_id += 1
+                                buildings.append(new_b)
+                                building_map[new_b.id] = new_b
+                                to_do.append(new_b.id)
+                                new_construction_count += 1
+            else:
+                if len(finished) > 10:
+                    prices = [building_map[b_id].retrofit_cost for b_id in finished]
+                    avg_price = np.mean(prices)
+                    if avg_price > params.build_cost * 1.2:
+                        if rng.random() < 0.1:
+                            new_b = create_new_building(params, 0, rng, next_building_id)
+                            next_building_id += 1
+                            buildings.append(new_b)
+                            building_map[new_b.id] = new_b
+                            to_do.append(new_b.id)
+                            new_construction_count += 1
+
         t += 1
 
-        if len(finished) == params.n:
+        if len(finished) == params.n and not params.enable_construction:
             break
 
     # Record final week
@@ -219,8 +368,9 @@ def run_simulation(params: Params) -> Result:
     weekly_finished[t] = len(finished)
     weekly_total_accounts[t] = sum(c.account for c in coops)
     weekly_with_capacity[t] = 0
-    wealths = np.array([h.wealth for h in households])
+    wealths = np.array([h.wealth for h in households.values()])
     weekly_gini[t] = gini_coefficient(wealths)
+    population_trajectory[t] = len(households)
 
     actual_weeks = t + 1
 
@@ -292,4 +442,8 @@ def run_simulation(params: Params) -> Result:
         bank_losses=bank_losses,
         default_count=default_count,
         total_loan_volume=total_loan_volume,
+        household_income_trajectories=household_income_trajectories[:, :actual_weeks],
+        investor_purchases=investor_purchases,
+        new_construction_count=new_construction_count,
+        population_trajectory=population_trajectory[:actual_weeks],
     )

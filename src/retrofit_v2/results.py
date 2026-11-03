@@ -56,6 +56,12 @@ class Result:
     default_count: int = 0
     total_loan_volume: float = 0.0
 
+    # Market realism monitors
+    household_income_trajectories: Optional[np.ndarray] = None
+    investor_purchases: int = 0
+    new_construction_count: int = 0
+    population_trajectory: Optional[np.ndarray] = None
+
     def __len__(self) -> int:
         """Return number of recorded weeks."""
         return len(self.weekly_finished)

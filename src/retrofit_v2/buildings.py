@@ -1,7 +1,7 @@
 """Building agents for v2 retrofit model."""
 import numpy as np
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
 from .params import Params
 from common.rng import make_rng
@@ -23,6 +23,8 @@ class Building:
         state: Current state ('to_do', 'queued', 'in_progress', 'finished').
         assigned_coop: ID of assigned co-op (if any).
         weeks_remaining: Weeks left in retrofit.
+        condition: Building condition (0-1, 1 = perfect).
+        depreciated_value: Current depreciated value.
     """
     id: int
     size: float
@@ -35,6 +37,8 @@ class Building:
     state: str = 'to_do'
     assigned_coop: Optional[int] = None
     weeks_remaining: int = 0
+    condition: float = 1.0
+    depreciated_value: float = 0.0
 
 
 def create_buildings(params: Params, households, rng: np.random.Generator):
@@ -81,6 +85,9 @@ def create_buildings(params: Params, households, rng: np.random.Generator):
     # Retrofit cost: weekly_cost * time * size factor
     retrofit_costs = params.week_cost * retrofit_times * sizes
 
+    # Initial condition: newer buildings better condition
+    conditions = np.clip(1.0 - ages / 100.0 + rng.normal(0, 0.1, n), 0.2, 1.0)
+
     buildings = []
     for i in range(n):
         b = Building(
@@ -92,6 +99,8 @@ def create_buildings(params: Params, households, rng: np.random.Generator):
             retrofit_time=retrofit_times[i],
             retrofit_cost=retrofit_costs[i],
             owner_id=households[i].id if i < len(households) else i,
+            condition=conditions[i],
+            depreciated_value=retrofit_costs[i] * conditions[i],
         )
         buildings.append(b)
         # Link building to household
@@ -99,3 +108,65 @@ def create_buildings(params: Params, households, rng: np.random.Generator):
             households[i].building_id = i
 
     return buildings
+
+
+def create_new_building(params: Params, neighbourhood: int, rng: np.random.Generator, next_id: int) -> Building:
+    """Create a newly constructed building.
+
+    Args:
+        params: Simulation parameters.
+        neighbourhood: Neighbourhood index.
+        rng: Random number generator.
+        next_id: Next available building ID.
+
+    Returns:
+        New Building object.
+    """
+    # New buildings: smaller, modern, good condition
+    size = rng.lognormal(0, 0.2)
+    age = 0.0
+    location_quality = rng.beta(3, 2)  # Slightly better locations
+    condition = 1.0
+
+    base_time = rng.uniform(
+        params.mean_time - params.time_var,
+        params.mean_time + params.time_var,
+    )
+    retrofit_time = max(1, int(np.round(base_time * size)))
+    retrofit_cost = params.week_cost * retrofit_time * size
+
+    return Building(
+        id=next_id,
+        size=size,
+        age=age,
+        location_quality=location_quality,
+        neighbourhood=neighbourhood,
+        retrofit_time=retrofit_time,
+        retrofit_cost=retrofit_cost,
+        owner_id=-1,  # No owner yet
+        condition=condition,
+        depreciated_value=retrofit_cost,
+    )
+
+
+def depreciate_buildings(buildings: List[Building], params: Params, dt: float = 1/52) -> None:
+    """Apply depreciation to all buildings.
+
+    Args:
+        buildings: List of buildings.
+        params: Simulation parameters.
+        dt: Time step in years (default: 1 week).
+    """
+    if params.depreciation_rate == 0:
+        return
+
+    for b in buildings:
+        if b.state == 'finished':
+            # Retrofitted buildings depreciate slower
+            dep_rate = params.depreciation_rate * 0.5
+        else:
+            dep_rate = params.depreciation_rate
+
+        b.age += dt
+        b.condition = max(0.1, b.condition - dep_rate * dt)
+        b.depreciated_value = b.retrofit_cost * b.condition
