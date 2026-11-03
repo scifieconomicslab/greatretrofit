@@ -1,6 +1,10 @@
-# The Great Retrofit: Housing Co-op Simulation Models
+# The Great Retrofit: Housing Retrofit Co-op Simulation Models
 
-Two versions of a simulation model for housing retrofit cooperatives in Brussels:
+A simulation of **housing retrofit cooperatives** (Brussels context): buildings that need energy retrofit are queued, assigned to retrofit co-ops, financed, and completed, while households, banks, investors and demographics interact over a weekly time axis. Two versions are provided: **v1** (baseline queueing-financial model) and **v2** (full agent-based model).
+
+Contributing models: **Nvidia Nemotron 3 Ultra** and **Beam 1.0**.
+
+---
 
 ## Version Comparison
 
@@ -15,10 +19,35 @@ Two versions of a simulation model for housing retrofit cooperatives in Brussels
 | **Dynamics** | Static stock | Demographics, depreciation, construction |
 | **Monitors** | Queue lengths, capital | Gini, price dispersion, TOM, bank losses, etc. |
 
+---
+
+## Repository Layout
+
+```
+TheGreatRetrofit/
+├── v1/                      # Original queueing-financial model
+│   ├── src/retrofit_v1/     # Core package (model, params, results, common/)
+│   ├── test_v1/             # Tests
+│   └── docs/                # v1 documentation
+├── v2/                      # Full agent-based model
+│   ├── src/retrofit_v2/     # Core package (8 modules + common/)
+│   ├── test_v2/             # Tests + snapshots
+│   ├── docs/                # v2 documentation
+│   └── TheGreatRetrofit_v2.ipynb   # Exploratory notebook (documented, charts)
+├── v1v2testcomparison/      # Cross-version comparison artefacts
+├── scripts/                 # Parameter sweeps & plotting
+├── docs/                    # Comparison report & plans
+├── data/                    # Generated sweep outputs (gitignored *.csv/*.json)
+├── Joffa's original/        # Original prototype notebook & docs
+└── pyproject.toml
+```
+
+---
+
 ## Quick Start
 
 ```bash
-# Install
+# Install (editable, with dev deps)
 pip install -e .[dev]
 
 # Run v1 (baseline)
@@ -44,31 +73,41 @@ print(f'v2: {r.finished}/{p.n} buildings, Gini={r.gini_wealth:.3f}')
 "
 ```
 
+Notes:
+- Import paths assume the package is installed (`pip install -e .`) so `retrofit_v1` / `retrofit_v2` are importable. Alternatively set `PYTHONPATH` to `v1/src` and `v2/src`.
+- All time series in `Result` are indexed by **weeks**.
+
+---
+
 ## Run Tests
 
 ```bash
-# All tests (53 tests)
+# All tests (53)
 pytest v1/test_v1/ v2/test_v2/ -v
 
-# v1 only (22 tests)
+# v1 only
 pytest v1/test_v1/ -v
 
-# v2 only (31 tests)
+# v2 only
 pytest v2/test_v2/ -v
 ```
+
+---
 
 ## Parameter Sweeps
 
 ```bash
-# Quick sweeps
+# Quick sweeps (both versions)
 python scripts/run_sweep.py --quick --version both --out data/sweep.csv
 
-# Full sweeps (like original notebook)
+# Full sweeps
 python scripts/run_sweep.py --version both --out data/sweep.csv
 
 # Plot results
 python scripts/plot_results.py --v1 data/sweep.v1.csv --v2 data/sweep.v2.csv --out plots/
 ```
+
+---
 
 ## Documentation
 
@@ -78,55 +117,26 @@ python scripts/plot_results.py --v1 data/sweep.v1.csv --v2 data/sweep.v2.csv --o
 | v2 Documentation | `v2/docs/v2_documentation.md` |
 | Comparison Report | `docs/comparison_report.md` |
 | Implementation Plan | `docs/plans/2026-11-03-model-upgrade.md` |
-| Upgrade Plan (original) | `upgrade plan.md` |
+| Upgrade Plan (original) | `Joffa's original/upgrade plan.md` |
+| v2 Notebook | `v2/TheGreatRetrofit_v2.ipynb` |
 
-## Project Structure
+---
 
-```
-TheGreatRetrofit/
-├── v1/                      # Original queueing-financial model
-│   ├── src/retrofit_v1/     # Core package
-│   ├── test_v1/             # Tests (22)
-│   └── docs/
-├── v2/                      # Full agent-based model
-│   ├── src/retrofit_v2/     # Core package (8 modules)
-│   ├── test_v2/             # Tests (31)
-│   └── docs/
-├── common/                  # Shared utilities
-├── scripts/                 # Sweep & plotting
-├── docs/                    # Comparison & plans
-├── data/                    # Output CSV files
-└── pyproject.toml
-```
+## v2 Mechanisms (summary)
 
-## Upgrade Plan Traceability
+1. Limited search — households see `search_length` random co-ops.
+2. Bargaining — buyers bid below asking; sellers have a reservation price.
+3. Bank lending — co-ops borrow for ~50% of projects; payment-to-income cap 30%.
+4. Default & foreclosure — banks check solvency, absorb losses (50% recovery).
+5. Local demand — time-on-market tracked per neighbourhood.
+6. Income process — AR(1) log-income + unemployment spells.
+7. Investor market — landlords buy when yield + growth > hurdle rate.
+8. Demographics — births/deaths, inheritance of buildings.
+9. Depreciation — buildings degrade; retrofitted degrade slower.
+10. Construction — new buildings when price > 1.2× build cost.
 
-All 23 items from `upgrade plan.md` implemented in v2:
+---
 
-1. ✅ Aspiration trait (persistent per household)
-2. ✅ Affordability heterogeneity (truncated normal)
-3. ✅ Wealth ~ Pareto independent of income
-4. ✅ Limited search length
-5. ✅ Building attributes (size, age, location)
-6. ✅ Household taste weights + shocks
-7. ✅ Bargaining (bid below asking, reservation price)
-8. ✅ Local demand signals (per-neighbourhood TOM)
-9. ✅ Exit hazard (age/income/stress dependent)
-10. ✅ Income process (AR(1) + unemployment)
-11. ✅ Demographics (births, deaths, inheritance)
-12. ✅ Consumption/capital dynamics
-13. ✅ Bank heterogeneity (LTV, spreads)
-14. ✅ Borrower-dependent lending (PTI cap, risk premium)
-15. ✅ Default & foreclosure
-16. ✅ Bank adaptation
-17. ✅ Heterogeneous expectations
-18. ✅ Investor/landlord market
-19. ✅ Transaction costs
-20. ✅ Stock evolution (depreciation, construction)
-21. ✅ Macro shocks (time-varying rates, income)
-22. ✅ Gini monitor
-23. ✅ Price dispersion, cash buyers, TOM spread monitors
+## Original Prototype
 
-## Original Notebook
-
-The original prototype: `GreatRetroFitV2.ipynb`
+The original prototype notebook and docs live in `Joffa's original/` (`GreatRetroFit.ipynb`, `Model_Documentation.md`).
