@@ -60,6 +60,9 @@
       }
       let residential;
       if (typeof b.residential === 'boolean') residential = b.residential;
+      // paperdolls ingest writes 'residential' | 'probable' | 'other'. 'probable' (plain building=yes, 30 m2 or more) is a GUESS: included, and counted.
+      else if (b.residential === 'residential' || b.residential === 'other') residential = b.residential === 'residential';
+      else if (b.residential === 'probable') { residential = true; assumed.residential++; }
       else { residential = !NON_RESIDENTIAL.has(String((b.osm && b.osm.building) || '').toLowerCase()); assumed.residential++; }
       rows.push({ id: b.id, area, storeys, residential });
       if (Array.isArray(b.neighbours)) neighbours.set(String(b.id), b.neighbours.map(String));
