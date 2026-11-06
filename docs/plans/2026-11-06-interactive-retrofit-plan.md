@@ -6,7 +6,7 @@ Companion file: [economist questions](2026-11-06-economist-questions.md), to be 
 
 ## 1. What we are building
 
-A page where a policymaker moves sliders (subsidy rate, loan terms, canvassing support, solidarity, energy price) and watches a map of Jette, Brussels respond. Buildings change state over simulated years, blocks show how close they are to a unanimous vote, and a side panel shows who gained and who was left behind.
+A page where a policymaker moves sliders (rebate rate and lag, credit access, delivery mode, vendor margin versus public overhead, energy price) and watches a map of Jette, Brussels respond. Buildings change state over simulated years, condos show how many units have retrofitted, and a side panel shows who gained and who was left behind.
 
 **Driving policy question:** why do tax rebates on retrofits work poorly, and why are they regressive?
 
@@ -43,15 +43,39 @@ The viewer's JS engine (`vizlib.js`, `assetlib.js`, `buildinglib.js`, `replay.js
 
 ## 4. v3 model (summary; full spec after economists' answers)
 
-**Agents.** Household (income, tax capacity, liquidity, green ideology, canvassing propensity, horizon, unit share). Building (type `standalone` or `block`, floor area, units, energy saving per year, retrofit cost). Block social state (per-unit stance: unaware, willing, champion; contact counter).
+Revised after the first economist reply: the model is **economic, not social**. Households act when the money works over a time frame; there is no ideology premium and no solidarity lever (both parked, see questions 21-22).
 
-**Stand-alone rule.** Retrofit when private NPV over the household's horizon is positive and the upfront cost can be financed. `rebate = deduction_rate × cost`, capped by the household's tax capacity; this cap is where the regressivity comes from.
+**Agents.**
+- *Household:* income, tax payable, liquid savings, age and expected years in dwelling, weekly time budget (working hours), credit access.
+- *Building:* tenure type, floor area, units, retrofit cost, annual energy saving, who pays utilities, energy class before and after.
+- *Landlord* (second version): owns a rental building, decides on the building, may or may not pay utilities.
+- *Lender:* one bank. Approves or refuses, at a fixed or household-dependent rate.
+- *Delivery channel:* market vendor (margin), or public service (overhead, capacity). See the delivery modes below.
 
-**Block rule.** Unanimity of units (rule is a parameter; see questions). Neighbours meet by chance; each meeting moves a unit towards "willing" once its private NPV is positive and its contact count reaches a threshold that falls with green ideology and service support. A champion raises the meeting rate at a personal cost.
+**Three ownership types.**
 
-**Levers.** Fiscal (deduction rate, optional refundable-credit toggle), credit (rate, loan-to-cost), service (support intensity), solidarity (cross-subsidy share), plus an energy price path.
+| Type | Decision | Included in |
+|---|---|---|
+| Owner-occupied home | Household decides alone | v1 of the model |
+| Condo unit | Each owner decides for their unit; shared parts (windows, facade, roof) need a vote or permission; a neighbour's retrofit raises the chance of following | v1 |
+| Rental building | Landlord decides. Incentive depends on who pays utilities: landlord pays means direct gain; flats metered separately means only a rent effect | v2, once the economists confirm the rent-effect treatment |
 
-**Outputs.** Adoption over time by income quintile and building type; rebate received per euro of cost by quintile; fiscal cost; bills saved; blocks stuck one vote short; champion effort.
+Owner-occupied homes are essential even if few: that is where the regressive pattern shows up.
+
+**Household rule (all types).** Retrofit if NPV over the household's horizon is positive **and** the cost can be financed: from savings, or credit if access is granted.
+`NPV = Σ discounted energy savings + net rebate - upfront cost - financing cost`
+Delivery mode changes which terms appear:
+- *Rebate (a):* upfront cost + loan; `net rebate = deduction_rate × cost`, capped by tax payable and arriving after a lag. The credit-access and tax-capacity terms are the regressivity channel.
+- *Pass-through (b):* no upfront cost and no credit; government pays the vendor.
+- *Public service (c):* as (b), with cost = labour + overhead and no profit; capacity-limited.
+
+**Condo rule.** Each owner decides for their unit. A neighbour's retrofit raises the chance of following (parameter, channel to be confirmed). Shared-part measures need approval at a voting threshold (parameter; default the legal rule once checked) and costs are split by floor area (default).
+
+**Canvassing as a time budget.** Each household has a time budget set by working hours. Canvassing spends it, so leisure-poor households (low-income with long hours, and high-income professionals) canvass less. Canvassing raises the chance a neighbour follows or a shared measure passes. Brussels time-use data feeds the budget distribution.
+
+**Levers (sliders).** Deduction rate; refundable-credit toggle; rebate lag; credit access rule and rate; delivery mode (a, b, c) with vendor margin, public overhead and public capacity; means-test toggle; energy price scenario.
+
+**Outputs (the five views).** (1) household cash timeline; (2) rebate per euro of cost by income quintile; (3) share able to front the cost, by quintile; (4) adoption by quintile for each delivery mode at equal public cost; (5) cost per retrofit by delivery mode. Plus a sensitivity view showing which assumptions would reverse the result. Regressivity should emerge from the mechanism, not be assumed.
 
 **Variant.** Energy community: no unanimity; joining an existing local community lowers the cost to the next joiner. Data model groups households by local power cabin from day one.
 
@@ -109,35 +133,44 @@ params:                                   # typed, validated, with units and hel
   deduction_rate: {type: number, min: 0, max: 1, default: 0.3, unit: share, label: Rebate rate,
                    help: "Share of retrofit cost deductible from tax", group: Fiscal}
   refundable:     {type: boolean, default: false, group: Fiscal}
-  loan_rate:      {type: number, min: 0, max: 0.08, default: 0.03, group: Credit}
-  service:        {type: number, min: 0, max: 1, default: 0, group: Service}
-  solidarity:     {type: number, min: 0, max: 1, default: 0, group: Solidarity}
+  rebate_lag:     {type: number, min: 0, max: 24, default: 12, unit: months, group: Fiscal}
+  credit_access:  {type: enum, values: [income_tested, open, none], default: income_tested, group: Credit}
+  loan_rate:      {type: number, min: 0, max: 0.08, default: 0.04, group: Credit}
+  delivery_mode:  {type: enum, values: [rebate_market, passthrough, public_service], default: rebate_market, group: Delivery}
+  vendor_margin:  {type: number, min: 0, max: 0.4, default: 0.15, group: Delivery}
+  public_overhead:{type: number, min: 0, max: 0.4, default: 0.10, group: Delivery}
+  public_capacity:{type: number, min: 0, max: 1, default: 0.5, label: Public service capacity, group: Delivery}
+  means_test:     {type: boolean, default: false, group: Delivery}
   energy_scenario:{type: enum, values: [flat, rising, shock], default: rising, group: Energy}
 
 presets:
-  - {id: rebate-only,   label: Rebate only,       params: {deduction_rate: 0.5}}
-  - {id: rebate-loan,   label: Rebate + loan,     params: {deduction_rate: 0.5, loan_rate: 0.01}}
-  - {id: full-package,  label: Full package,      params: {deduction_rate: 0.5, loan_rate: 0.01, service: 0.7, solidarity: 0.5}}
+  - {id: rebate-only,    label: Rebate only,          params: {delivery_mode: rebate_market, deduction_rate: 0.5}}
+  - {id: passthrough,    label: Pay the vendor direct, params: {delivery_mode: passthrough}}
+  - {id: public-service, label: Public retrofit service, params: {delivery_mode: public_service}}
 
 entities:                                  # what the model emits per frame
-  building:  {fields: {state: category, willing_share: number, units: int, income_q_mean: number}}
+  building:  {fields: {state: category, tenure: category, adopted_share: number, units: int, income_q_mean: number}}
   household: {fields: {income_q: int, retrofit_state: category}}   # only in inspector, never drawn on a street
 
 mappings:                                  # extends today's replay.mapping
-  - {entity: building, field: state,         channel: wall,    scale: {type: categorical, values: {...}}}
-  - {entity: building, field: willing_share, channel: segments, scale: {type: sequential, ...}}   # new channel
-  - {entity: building, field: state,         channel: overlay, scale: {...}}
+  - {entity: building, field: state,          channel: wall,    scale: {type: categorical, values: {...}}}
+  - {entity: building, field: tenure,         channel: marker,  scale: {type: categorical, ...}}
+  - {entity: building, field: adopted_share,  channel: segments, scale: {type: sequential, ...}}   # new channel: units retrofitted in a condo
+  - {entity: building, field: state,          channel: overlay, scale: {...}}
 
 series:                                    # time series for charts
   adoption_by_quintile: {x: year, y: [q1,q2,q3,q4,q5], unit: share}
   rebate_per_euro:      {x: quintile, y: ratio}
+  can_front_cost:       {x: quintile, y: share}
+  cost_per_retrofit:    {x: delivery_mode, y: euros}
 
 layout:                                    # declarative panels
-  left:   [{control: params, groups: [Fiscal, Credit, Service, Solidarity, Energy]}, {control: presets}]
+  left:   [{control: params, groups: [Fiscal, Credit, Delivery, Energy]}, {control: presets}]
   right:  [{chart: line,  series: adoption_by_quintile}, {chart: bar, series: rebate_per_euro},
-           {chart: kpis, items: [fiscal_cost, bills_saved, blocks_stuck]}]
+           {chart: bar, series: can_front_cost}, {chart: bar, series: cost_per_retrofit},
+           {chart: kpis, items: [public_cost, bills_saved]}]
   bottom: [{control: timeline}]
-  inspector: {building: [header, units_table, why_stuck]}
+  inspector: {building: [header, units_table, why_not_retrofitted]}
   banner: "Geometry from OpenStreetMap. Households and incomes are synthetic."
 ```
 
@@ -188,9 +221,9 @@ Grouped by need; each has a test in `viz/test_*.js` or `tests/`.
 - Deterministic scene seed separate from model seed (known issue 15).
 
 **New visual channels**
-- `segments`: building face split into N parts to show unit state in a block (e.g. 6 windows lit as "willing"). Needed to make "one vote short" visible.
+- `segments`: building face split into N parts to show unit state in a block (e.g. 6 windows lit for 6 units, filled as each retrofits). Needed to show partial retrofit in a condo.
 - `height` channel (known gap in replay-mapping.md), optional, for quantities like energy use.
-- `outline` / `halo` for selection and for highlighting stuck blocks.
+- `outline` / `halo` for selection and for highlighting buildings that cannot retrofit (for example, no credit access).
 - Overlays from a pack: `scaffold` exists; add `insulation` (wrap/cladding colour change on retrofit) and `solar`/`community` markers as needed.
 - Heat-style district layer: ground tint by neighbourhood aggregate (adoption rate, income quintile), for the "who is left behind" view.
 
@@ -228,7 +261,7 @@ Grouped by need; each has a test in `viz/test_*.js` or `tests/`.
 | P3 | Scene entity table, `bindScene`, residential classification | P1 | Jette scene where each building shows its model type/units |
 | P4 | Picking, selection, inspector, tooltip | P2, P3 | Click a block, see unit table |
 | P5 | Charts, KPI tiles, presets, A/B compare, display group | P1 | Full dashboard around the map |
-| P6 | New channels: `segments`, `outline`, `insulation` overlay, ground tint | P2 | Block shows 5-of-6 units willing |
+| P6 | New channels: `segments`, `outline`, `insulation` overlay, ground tint | P2 | Condo shows 5 of 6 units retrofitted |
 | P7 | Terrain spike → elevation and relief | P3 | Jette hills visible |
 | P8 | Whole-commune ingest + better storeys | none | Whole Jette scene with an assumptions report |
 | P9 | Pyodide and `remote` runtimes; pack dev server; pack build/check CLI | P1 | Same pack runs on three runtimes with identical output |
@@ -247,7 +280,7 @@ Phase numbers here are project phases; P-numbers above are paperdolls tasks.
 - Decide v2's fate for the demo (out of scope is acceptable).
 
 ### Phase 1: v3 core in Python (about 2 weeks)
-- `v3/src/retrofit_v3/` in the repo's existing conventions. Tests: seed reproducibility; state-count conservation; rebate never exceeds cost or tax capacity; block retrofits only when all units willing; monotonicity (higher subsidy never lowers adoption); zero-savings world gives zero adoption.
+- `v3/src/retrofit_v3/` in the repo's existing conventions. Tests: seed reproducibility; state-count conservation; rebate never exceeds cost or tax capacity; shared-part measure passes only at the voting threshold; retrofit never exceeds financing (savings plus credit) unless pass-through or public service; rebate never exceeds cost or tax payable; public service never exceeds its capacity; monotonicity (higher subsidy never lowers adoption); zero-savings world gives zero adoption.
 - `scripts/sweep_v3.py`: subsidy × income sweep.
 - **Go/no-go:** does a rebate-only policy reproduce a regressive pattern, and which lever closes it? If not, take the finding to the economists before more UI work.
 
@@ -282,7 +315,7 @@ Dry runs with 2-3 outside people; on-screen "what this model does and doesn't cl
 | OSM coverage and asset fit are weak (28% fit) | Rough-looking map | Accept extrusions; improve storeys with Brussels building data if found |
 | Elevation harder than expected | Schedule | One-day spike first; fall back to relief shading |
 | Calibration data unavailable at fine granularity | Credibility | Stylised presets with confidence labels |
-| Scope creep across four levers + energy community | Delays | Levers added one at a time, each tested before the next |
+| Scope creep across three ownership types, three delivery modes and the energy community | Delays | Start with owner-occupied homes and condos, rebate mode first, then pass-through and public service; rental buildings in v2 of the model |
 
 ## 8. Dependencies
 
@@ -296,7 +329,7 @@ Phases 1-3 touch different folders and can run in parallel. Anything in Phase 4 
 
 ## 9. Immediate next steps
 
-1. Send the economist questions.
+1. Send the revised economist questions (30, with ten priorities in Part 1).
 2. Fork/branch paperdolls and start P1 against the toy epidemic.
 3. Run the whole-commune Jette ingest and record what breaks (P8).
 4. Draft the v3 spec as soon as the answers on tenure, voting rule and cost sharing arrive.
