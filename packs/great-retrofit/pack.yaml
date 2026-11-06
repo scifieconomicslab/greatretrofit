@@ -1,0 +1,117 @@
+spec: 1
+id: great-retrofit
+title: The Great Retrofit
+description: >
+  Households in Jette decide, month by month, whether to retrofit their dwelling when the money works over their time in it (NPV) and the cost can be
+  financed (savings, or credit if access is granted). Three ownership types (owner-occupied, condo, rental; rental is a stub for now) and three delivery
+  modes (tax rebate with a market vendor, pay the vendor direct, public retrofit service). ECONOMIC, NOT SOCIAL: no ideology premium, no solidarity lever.
+  EVERY NUMBER IS A PLACEHOLDER awaiting the economists (v3/docs/placeholders.md); nothing here is a finding.
+
+runtime: {type: js, entry: runtime.js, seed: 1, on_params: rerun}
+time: {unit: month, steps: 180, speeds: [6, 24, 72], speed: 24}
+
+params:
+  deduction_rate:    {type: number, min: 0, max: 1, step: 0.05, default: 0.3, unit: share, label: Rebate rate, group: Fiscal,
+                      help: "Share of retrofit cost deductible from tax (rebate mode). Placeholder default."}
+  refundable:        {type: boolean, default: false, label: Refundable credit, group: Fiscal,
+                      help: "If on, households with little tax still get the full rebate. If off, the rebate is capped by tax payable."}
+  rebate_lag_months: {type: integer, min: 0, max: 24, default: 12, unit: months, label: Rebate lag, group: Fiscal,
+                      help: "Months between the retrofit and the rebate arriving."}
+  credit_access:     {type: enum, values: [{value: income_tested, label: Income tested}, {value: open, label: Open to all}, {value: none, label: No credit}], default: income_tested,
+                      label: Credit access, group: Credit, help: "Who can borrow the part of the price that savings do not cover."}
+  loan_rate:         {type: number, min: 0, max: 0.08, step: 0.005, default: 0.04, unit: per year, label: Loan rate, group: Credit}
+  delivery_mode:     {type: enum, values: [{value: rebate_market, label: "Rebate, market vendor"}, {value: passthrough, label: Pay the vendor direct}, {value: public_service, label: Public retrofit service}],
+                      default: rebate_market, label: Delivery mode, group: Delivery,
+                      help: "Rebate: the household pays then claims. Pay direct: the state pays the vendor. Public service: the state does the work, with limited capacity."}
+  vendor_margin:     {type: number, min: 0, max: 0.4, step: 0.01, default: 0.15, unit: share, label: Vendor margin, group: Delivery, help: "Market vendor margin over base cost."}
+  public_overhead:   {type: number, min: 0, max: 0.4, step: 0.01, default: 0.10, unit: share, label: Public overhead, group: Delivery, help: "Public service overhead over base cost."}
+  public_capacity:   {type: number, min: 0, max: 1, step: 0.01, default: 0.05, unit: share per year, label: Public service capacity, group: Delivery,
+                      help: "Largest share of all dwelling units the public service can complete in a year."}
+  means_test:        {type: boolean, default: false, label: Means test, group: Delivery,
+                      help: "Restrict pay-direct and public service to the lowest income quintiles (placeholder cut-off: bottom two). Does not apply to the rebate."}
+  energy_scenario:   {type: enum, values: [{value: flat, label: Flat}, {value: rising, label: Rising}, {value: shock, label: Shock}], default: rising,
+                      label: Energy price path, group: Energy, help: "Annual growth in the value of energy savings: 0, 3 or 8 percent (placeholders)."}
+
+presets:
+  - {id: rebate-only,     label: Rebate only,             params: {delivery_mode: rebate_market, deduction_rate: 0.5}}
+  - {id: passthrough,     label: Pay the vendor direct,   params: {delivery_mode: passthrough}}
+  - {id: public-service,  label: Public retrofit service, params: {delivery_mode: public_service}}
+
+entities:
+  building:
+    count: 200
+    fields:
+      state:         {type: category, values: [not_retrofitted, partial, retrofitted, not_modelled]}
+      tenure:        {type: category, values: [owner_occupied, condo, rental]}
+      adopted_share: number
+      units:         int
+      income_q_mean: number
+
+mappings:
+  - entity: building
+    field: state
+    channel: wall
+    scale:
+      type: categorical
+      label: Retrofit state
+      values:
+        not_retrofitted: {colour: "#c9b8a4", label: Not retrofitted}
+        partial:         {colour: "#e0a43c", label: Some units retrofitted}
+        retrofitted:     {colour: "#5f9f7a", label: All units retrofitted}
+        not_modelled:    {colour: "#a8a8a8", label: Not modelled yet (rental)}
+  - entity: building
+    field: adopted_share
+    channel: wall
+    scale: {type: sequential, label: Units retrofitted, domain: [0, 1], colours: ["#e8dcc8", "#e0a43c", "#2f7d5b"]}
+  - entity: building
+    field: tenure
+    channel: wall
+    scale:
+      type: categorical
+      label: Ownership type
+      values:
+        owner_occupied: {colour: "#7aa6c2", label: Owner-occupied home}
+        condo:          {colour: "#b58fc4", label: Condo}
+        rental:         {colour: "#c9a27a", label: Rental}
+  - entity: building
+    field: income_q_mean
+    channel: wall
+    scale: {type: sequential, label: Mean income quintile (synthetic), domain: [1, 5], colours: ["#f1e6c8", "#8fb5a0", "#2d5d73"]}
+  - entity: building
+    field: state
+    channel: overlay
+    scale:
+      type: categorical
+      label: Works under way
+      values:
+        not_retrofitted: {overlay: null,     label: Not retrofitted}
+        partial:         {overlay: scaffold, label: Some units retrofitted}
+        retrofitted:     {overlay: null,     label: All units retrofitted}
+        not_modelled:    {overlay: null,     label: Not modelled yet (rental)}
+  # planned (P6): units retrofitted shown as parts of the building face
+  - entity: building
+    field: adopted_share
+    channel: segments
+    scale: {type: sequential, label: Units retrofitted, domain: [0, 1], colours: ["#e8dcc8", "#2f7d5b"]}
+
+series:
+  adoption_by_quintile: {label: Share of units retrofitted, unit: share, y: [q1, q2, q3, q4, q5]}
+  rebate_per_euro:      {label: Public transfer per euro of price (adopters so far), unit: ratio, y: [q1, q2, q3, q4, q5]}
+  can_front_cost:       {label: Share able to finance the price now, unit: share, y: [q1, q2, q3, q4, q5]}
+  cost_per_retrofit:    {label: Mean price paid per retrofit (active delivery mode), unit: euros, y: [price]}
+  public_cost:          {label: Cumulative public cost, unit: euros, y: [euros]}
+  bills_saved:          {label: Cumulative energy bills saved, unit: euros, y: [euros]}
+  buildings_by_state:   {label: Buildings by state, unit: buildings, y: [not_retrofitted, partial, retrofitted, not_modelled]}
+
+layout:
+  left:   [{control: params, groups: [Fiscal, Credit, Delivery, Energy]}, {control: presets}]
+  right:  [{control: legend},
+           {chart: line, series: adoption_by_quintile},
+           {chart: bar,  series: rebate_per_euro},
+           {chart: bar,  series: can_front_cost},
+           {chart: bar,  series: cost_per_retrofit},
+           {kpis: [public_cost, bills_saved]},
+           {control: display}]
+  bottom: [{control: timeline}]
+
+banner: "Building geometry is real (OpenStreetMap, Jette, Brussels). Households, incomes and ownership are synthetic. All numbers are illustrative placeholders, not findings."
