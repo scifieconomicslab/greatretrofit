@@ -34,3 +34,6 @@ Thumbs.db
 cache/
 build/
 packs/great-retrofit/dist/
+
+# Geodata: raw downloads (never commit) and the optional local venv
+data/raw/
