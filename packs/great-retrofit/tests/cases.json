@@ -1,0 +1,42 @@
+{
+  "_note": "Parity cases for the v3 model: Params overrides (snake_case, as in Python's Params). Python and JS must produce the same frames. Golden files are generated from Python by tools/regen_golden.py. Placeholder economics: these test equivalence, not realism.",
+  "cases": [
+    {"name": "rebate_default_s1", "params": {"seed": 1, "n_buildings": 24, "horizon_months": 84}},
+    {"name": "rebate_refundable_nocredit_s2", "params": {"seed": 2, "n_buildings": 24, "horizon_months": 84, "refundable": true, "credit_access": "none", "deduction_rate": 0.5}},
+    {"name": "rebate_open_credit_s3", "params": {"seed": 3, "n_buildings": 24, "horizon_months": 84, "credit_access": "open", "rebate_lag_months": 6, "energy_scenario": "shock"}},
+    {"name": "rebate_flat_energy_zero_savings_s4", "params": {"seed": 4, "n_buildings": 24, "horizon_months": 84, "energy_scenario": "flat", "savings_scale": 0.0, "scene_seed": 9}},
+    {"name": "passthrough_s5", "params": {"seed": 5, "n_buildings": 24, "horizon_months": 84, "delivery_mode": "passthrough"}},
+    {"name": "passthrough_means_test_s6", "params": {"seed": 6, "n_buildings": 24, "horizon_months": 84, "delivery_mode": "passthrough", "means_test": true, "means_test_max_quintile": 3, "vendor_margin": 0.25}},
+    {"name": "public_service_s7", "params": {"seed": 7, "n_buildings": 24, "horizon_months": 84, "delivery_mode": "public_service", "public_capacity": 0.3}},
+    {"name": "public_service_means_test_s8", "params": {"seed": 8, "n_buildings": 24, "horizon_months": 84, "delivery_mode": "public_service", "public_capacity": 0.2, "means_test": true, "public_overhead": 0.2, "scene_seed": 4}},
+    {"name": "explicit_buildings_s9", "params": {"seed": 9, "horizon_months": 60, "credit_access": "open",
+      "scene_rules": {"avg_unit_area": 70.0},
+      "buildings": [
+        {"id": "a", "tenure": "owner_occupied", "unit_areas": [120.5]},
+        {"id": "b", "tenure": "condo", "unit_areas": [60.0, 75.5, 82.25, 90.0, 64.0, 71.0]},
+        {"id": "c", "tenure": "rental", "unit_areas": [55.0, 55.0]},
+        {"id": "d", "tenure": "condo", "unit_areas": [80.0, 80.0, 95.0]},
+        {"id": "e", "tenure": "owner_occupied", "unit_areas": [140.0]},
+        {"id": "f", "tenure": "owner_occupied", "unit_areas": [95.0]}
+      ]}},
+    {"name": "explicit_buildings_passthrough_s10", "params": {"seed": 10, "horizon_months": 60, "delivery_mode": "passthrough", "consider_prob_base": 0.1, "neighbour_boost": 0.5,
+      "buildings": [
+        {"id": "a", "tenure": "owner_occupied", "unit_areas": [120.5]},
+        {"id": "b", "tenure": "condo", "unit_areas": [60.0, 75.5, 82.25, 90.0, 64.0, 71.0]},
+        {"id": "c", "tenure": "rental", "unit_areas": [55.0, 55.0]},
+        {"id": "d", "tenure": "condo", "unit_areas": [80.0, 80.0, 95.0]}
+      ]}}
+  ],
+  "scene_table_cases": [
+    {"name": "scene_rows_a", "scene_seed": 3, "rows": [
+      {"id": "x1", "area": 95.0, "storeys": 2, "residential": true},
+      {"id": "x2", "area": 410.5, "storeys": 5, "residential": true},
+      {"id": "x3", "area": 300.0, "storeys": 3, "residential": false},
+      {"id": "x4", "area": 0.0, "storeys": 2, "residential": true},
+      {"id": "x5", "area": 200.0, "storeys": null, "residential": true},
+      {"id": "x6", "area": 100.0, "storeys": 2, "residential": true},
+      {"id": "x7", "area": 120.0, "storeys": 5, "residential": true},
+      {"id": "x8", "area": 777.7, "storeys": 4, "residential": true}
+    ]}
+  ]
+}
