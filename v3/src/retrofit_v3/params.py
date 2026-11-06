@@ -1,7 +1,7 @@
 """Parameters for the v3 retrofit model.
 
 EVERY default below marked ``# PLACEHOLDER`` is a stand-in awaiting the
-economists' answers (docs/plans/2026-11-06-economist-questions.md). Do not read
+economists' answers (open questions held outside this repository). Do not read
 results from these numbers as findings. List: v3/docs/placeholders.md
 (a test keeps that list in sync with this file).
 """
