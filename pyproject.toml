@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "retrofit-model"
 version = "0.1.0"
-description = "Housing retrofit co-op simulation models (v1 and v2)"
+description = "Housing retrofit co-op simulation models (v1, v2 and v3)"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -25,12 +25,12 @@ plot = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["v1/test_v1", "v2/test_v2"]
+testpaths = ["v1/test_v1", "v2/test_v2", "v3/test_v3"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --strict-markers"
 
 [tool.setuptools.packages.find]
-where = ["v1/src", "v2/src"]
-include = ["retrofit_v1*", "retrofit_v2*"]
+where = ["v1/src", "v2/src", "v3/src"]
+include = ["retrofit_v1*", "retrofit_v2*", "retrofit_v3*"]
