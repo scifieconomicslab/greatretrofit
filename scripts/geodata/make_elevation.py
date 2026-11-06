@@ -20,24 +20,12 @@ import argparse, glob, json, math, os, sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from frame import Frame                              # noqa: E402
 from lambert72 import lonlat_to_lambert72          # noqa: E402
 from tiffio import read_tiled_float, write_geotiff_f32_lonlat   # noqa: E402
 
 R_EARTH = 6371008.8
 DEG = math.pi / 180.0
-
-
-def frame_latlon(area):
-    """The scene's LocalFrame.latlon(), re-implemented from paperdolls/ingest/geo.py (x east, y south, rotated by rotation_deg)."""
-    lat0, lon0 = area["origin"]["lat"], area["origin"]["lon"]
-    kx, ky = R_EARTH * math.cos(lat0 * DEG) * DEG, R_EARTH * DEG
-    a = area.get("rotation_deg", 0.0) * DEG
-    c, s = math.cos(a), math.sin(a)
-
-    def latlon(xr, yr):
-        x, y = xr * c - yr * s, xr * s + yr * c
-        return lat0 - y / ky, lon0 + x / kx
-    return latlon
 
 
 def scene_points(scene):
@@ -110,7 +98,7 @@ def bilinear(a, fx, fy):
 
 def build(scene, tiles_dir, cell_m, margin_m):
     area = scene["area"]
-    latlon = frame_latlon(area)
+    latlon = Frame(area).latlon
     pts = np.array(list(scene_points(scene)), dtype=float)
     xmin, ymin = pts.min(0) - margin_m
     xmax, ymax = pts.max(0) + margin_m
