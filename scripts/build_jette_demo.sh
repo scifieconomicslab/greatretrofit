@@ -24,10 +24,13 @@ if [ ! -f "$SCENE" ]; then
   pd ingest cache/jette-commune-extract.json --boundary-relation 58258 --out "$SCENE" --name Jette
 fi
 
+# TODO(runtime.files): once paperdolls merges `runtime.files` (another session, pd-layout, is adding it), list prng.js, hook.js, runtime.js and bind.js in
+# packs/great-retrofit/pack.yaml, drop this bundling step, the `pack check packs/great-retrofit/dist` line and dist/, and run `pack check` / `pack build` on
+# packs/great-retrofit directly. Not done yet: the validator on paperdolls main (f23f9d4) does not accept the key, and `pack build` on the folder inlines only
+# runtime.entry and bind.js (no prng.js, no hook.js), so the folder build would not run.
 echo "== bundling the pack (prng + hook + runtime + bind -> one entry)" >&2
 node packs/great-retrofit/tools/bundle.js
-echo "== pack check" >&2
-pd pack check packs/great-retrofit
+echo "== pack check (the folder itself fails the runtime-load check until runtime.files: runtime.js alone has no prng.js)" >&2
 pd pack check packs/great-retrofit/dist
 echo "== pack build" >&2
 pd pack build packs/great-retrofit/dist --scene "$SCENE" --out build/jette_retrofit.html

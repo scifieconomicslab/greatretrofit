@@ -53,9 +53,27 @@ A test (`test_docs_sync.py`) fails if a `# PLACEHOLDER` in `params.py` / `scene_
 | `years_in_dwelling_max` | 25.0 |  | Q6, Q16 |
 | `usable_fraction` | 0.8 | share of gross area that is dwelling floor | Q12 |
 | `avg_unit_area` | 80.0 | m2 per dwelling unit | Q12 |
-| `rental_share_single` | 0.10 | share of single-unit buildings that are rented | Q4 |
-| `rental_share_multi` | 0.30 | share of multi-unit buildings that are rental | Q4 |
+| `rental_share_single` | 0.10 | share of single-unit buildings that are rented (scene rule; also a run parameter, see "Tenure rule") | Q4 |
+| `rental_share_multi` | 0.30 | share of multi-unit buildings that are rental (scene rule; also a run parameter) | Q4 |
 | `unit_area_spread` | 0.2 | +/- relative spread of unit sizes in a building | Q12 |
+
+## Tenure rule (placeholder)
+
+Which scene buildings are owner-occupied, condo or rental is **not data**. Rule (`scene_entities.build_entities`, `SceneRules`): a building with one dwelling unit is rental with probability `rental_share_single`, else owner-occupied; a building with two or more is rental with probability `rental_share_multi`, else condo. "Probability" is a fixed per-building uniform draw from the scene seed, stored on the model building (`rental_draw`), so the same building keeps the same draw. With the defaults 0.10 and 0.30 and the Jette scene, this gave 45% condo, 31% owner-occupied and 23% rental of 8,105 buildings (the integration check); that outcome follows from the two shares and the unit-count rule, nothing else.
+
+The two shares are also **run parameters** (`Params.rental_share_single` / `rental_share_multi`, defaults 0.10 and 0.30, same as the scene rules, so nothing changes unless they move; `None` keeps what the scene rules gave; the pack sets them from its sliders). When set, each scene-built building is re-assigned from its stored draw, so moving the slider changes which buildings are rental without re-binding the scene; buildings given explicit tenure (tests) are untouched. The frame reports the outcome as `series.tenure_counts`. Rental buildings are `not_modelled` (grey): they never adopt, and every share in the output has them in its denominator.
+
+Candidate figures for the economists (from `docs/calibration/tenure-and-buildings.md`; **none is used in the model**, and none is a share of *buildings*, which is what the rule needs):
+
+| Candidate | Value | Confidence | Why it does not fit directly |
+|---|---|---|---|
+| Owner-occupied share of dwellings, Jette, Census 2011 (IBSA) | 48% | medium (2011; no Jette 2021 figure found) | share of dwellings, not buildings; the rest (52%) mixes private and social tenants |
+| Owner-occupied share of dwellings, Brussels Region, Census 2021 | 38.12% | high (region only) | region, not Jette |
+| Owner-occupancy: houses 76.9% vs apartments 31.6% (Region) | | low (search summary only) | would suggest a rental share that depends on building type, which the rule's unit-count split approximates |
+| Social dwellings, Jette, end 2020 | 1,406, 6.3 per 100 households | high | social landlords are a different actor from the private landlord the stub will model |
+| Apartment buildings among Jette residential buildings, 2021 | 23% | high | gives the share of multi-unit buildings, not their tenure |
+
+The rule's 45% condo share is therefore **not** a finding about Jette's co-ownership; the calibration doc found no commune-level co-ownership count.
 
 ## Structure that is stubbed or absent (not parameters)
 

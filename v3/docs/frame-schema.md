@@ -26,6 +26,7 @@ Stability rule: fields may be added; none may be renamed or removed without bump
 | `income_q_mean` | float | mean income quintile (1..5) of the building's households. Static; block-level only, never household detail |
 | `shared_state` | str | `none` (no shared parts: owner-occupied, rental, single-unit, or `shared_measure` off), `pending` (vote not passed), `approved` |
 | `vote_yes_share` | float | floor-area share of the building's households that support the shared measure now; 0 when `shared_state` is `none` |
+| `units_cannot_front` | int | units not yet retrofitted that cannot finance what they still have to pay now (savings plus credit; the same test as `can_front_cost`); 0 for rental and for finished buildings. The pack outlines a building when all its remaining units are in this state |
 
 `adopted_share` counts a unit as retrofitted when all its parts are paid (its own part and, in a condo with a shared measure, its share of the shared measure). `state` counts always sum to the number of buildings (`series.state_counts`).
 
@@ -48,6 +49,11 @@ Quintile arrays have 5 entries, index 0 = lowest income quintile. `null` means u
 | `leisure_hours_by_quintile` | float[5] | mean weekly free hours per household left after canvassing; never negative |
 | `net_cash_by_quintile` | (float or null)[5] | household cash timeline by quintile: mean cumulative net cash (bills saved + rebates received - savings spent - loan payments made) over households that have paid for any works; null if none yet |
 | `shared_counts` | object | `{pending, approved}`: number of buildings with shared parts by vote state |
+| `tenure_counts` | object | `{owner_occupied, condo, rental}`: number of buildings by tenure, the outcome of the placeholder tenure rule (v3/docs/placeholders.md, "Tenure rule") |
+
+## No-data
+
+The v3 frame says `null` (JSON has no NaN): `rebate_per_euro`, `can_front_cost`, `cost_per_retrofit`, `cost_per_retrofit_parts`, `net_cash_by_quintile` while nobody is in the denominator (month 0 for all of them). Nothing else is ever null. The pack runtime converts exactly these to `NaN`, the pack frame's no-data value (paperdolls `pack-spec.md`, "entities": `NaN` in a number field or series point, `-1` in a category), and a test asserts that NaN appears only there and only where the v3 frame has `null`. Paperdolls charts and KPI tiles draw NaN as "no data", never as zero.
 
 ## Mapping to the pack manifest (plan §5.2)
 

@@ -49,6 +49,10 @@ class Params:
     peer_effect: bool = True             # PLACEHOLDER condo: a neighbour's retrofit raises the chance of following
     loan_rate_risk_premium: float = 0.02  # PLACEHOLDER extra annual loan rate for households below the credit income threshold
 
+    # --- tenure rule (placeholder; overrides the scene rules' shares for scene-built buildings via their stored draw; None keeps the tenure the scene rules gave) ---
+    rental_share_single: Optional[float] = 0.10  # PLACEHOLDER share of single-unit buildings treated as rental (not modelled, never adopt)
+    rental_share_multi: Optional[float] = 0.30   # PLACEHOLDER share of multi-unit buildings treated as rental
+
     # --- condo shared parts (vote) ---
     shared_measure: bool = True          # PLACEHOLDER condo buildings (2+ units) have shared parts that need a vote
     shared_share: float = 0.4            # PLACEHOLDER share of retrofit cost and of energy saving that sits in shared parts
@@ -111,6 +115,9 @@ class Params:
                      "discount_rate", "credit_income_threshold", "credit_loan_to_income",
                      "tax_free_allowance", "savings_months_of_income", "savings_scale"):
             validate_nonnegative(getattr(self, name), name)
+        for name in ("rental_share_single", "rental_share_multi"):
+            if getattr(self, name) is not None:
+                validate_probability(getattr(self, name), name)
         if not 0.0 < self.vote_threshold <= 1.0:
             raise ValueError("vote_threshold must be in (0, 1]")
         object.__setattr__(self, "work_hours_by_quintile", tuple(float(x) for x in self.work_hours_by_quintile))

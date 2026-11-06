@@ -37,6 +37,10 @@ params:
                       help: "Condo buildings retrofit windows, facade and roof together after an owners' vote; the cost is split by floor area."}
   vote_threshold:    {type: number, min: 0.5, max: 1, step: 0.01, default: 0.6666666666666666, unit: share of floor area, label: Vote threshold, group: Condo,
                       help: "Share of floor area that must vote yes. Two-thirds is from a secondary source and unverified."}
+  rental_share_single: {type: number, min: 0, max: 1, step: 0.05, default: 0.10, unit: share, label: "Rental share, single-dwelling buildings", group: Tenure (placeholder),
+                      help: "PLACEHOLDER rule, not data: the share of single-dwelling buildings treated as rental. Rental buildings are grey on the map, not modelled yet, and never retrofit."}
+  rental_share_multi:  {type: number, min: 0, max: 1, step: 0.05, default: 0.30, unit: share, label: "Rental share, multi-dwelling buildings", group: Tenure (placeholder),
+                      help: "PLACEHOLDER rule, not data: the share of buildings with two or more dwellings treated as rental. The rest are condo. See v3/docs/placeholders.md."}
   canvass_target_hours: {type: number, min: 0, max: 10, step: 0.5, default: 2.0, unit: hours per week, label: Canvassing effort, group: Condo,
                       help: "Weekly hours supporters would spend canvassing neighbours, limited by their free time (set by working hours)."}
 
@@ -44,6 +48,8 @@ presets:
   - {id: rebate-only,     label: Rebate only,             params: {delivery_mode: rebate_market, deduction_rate: 0.5}}
   - {id: passthrough,     label: Pay the vendor direct,   params: {delivery_mode: passthrough}}
   - {id: public-service,  label: Public retrofit service, params: {delivery_mode: public_service}}
+  # tenure is a placeholder rule: this shows how much of the map that rule turns grey (not modelled). It is not a finding about Jette.
+  - {id: more-rental,     label: "More rental buildings (grey, not modelled)", params: {rental_share_single: 0.25, rental_share_multi: 0.5}}
 
 entities:
   building:
@@ -54,6 +60,8 @@ entities:
       tenure:        {type: category, values: [owner_occupied, condo, rental]}
       adopted_share: number
       units:         int
+      units_done:    {type: int, label: Dwellings retrofitted}
+      cannot_front:  {type: boolean, label: Cannot pay for what is left now}
       income_q_mean: number
       shared_state:  {type: category, values: [none, pending, approved]}
 
@@ -106,13 +114,31 @@ mappings:
       values:
         not_retrofitted: {overlay: null,     label: Not retrofitted}
         partial:         {overlay: scaffold, label: Some units retrofitted}
-        retrofitted:     {overlay: null,     label: All units retrofitted}
+        retrofitted:     {overlay: insulation, label: All units retrofitted (insulated)}
         not_modelled:    {overlay: null,     label: Not modelled yet (rental)}
-  # planned (P6): units retrofitted shown as parts of the building face
+  # P6 channels
+  - entity: building
+    field: units_done
+    channel: segments
+    total: units
+    max: 12
+    scale: {type: segments, label: Dwellings retrofitted (parts of the building), colour: "#2f7d5b", todo: "#e8dcc8"}
+  - entity: building
+    field: cannot_front
+    channel: outline
+    scale:
+      type: categorical
+      label: Cannot pay now
+      values:
+        true:  {colour: "#b3261e", label: "Every dwelling still to do cannot pay its share now (savings plus credit)"}
+        false: {colour: null,      label: "Can pay, or nothing left to do"}
   - entity: building
     field: adopted_share
-    channel: segments
-    scale: {type: sequential, label: Units retrofitted, domain: [0, 1], colours: ["#e8dcc8", "#2f7d5b"]}
+    channel: groundtint
+    group: {grid: 250}
+    aggregate: mean
+    opacity: 0.45
+    scale: {type: sequential, label: Mean share of dwellings retrofitted per building, domain: [0, 1], colours: ["#f7efd9", "#e0a43c", "#2f7d5b"]}
 
 series:
   adoption_by_quintile: {label: Share of units retrofitted, unit: share, y: [q1, q2, q3, q4, q5]}
@@ -122,22 +148,26 @@ series:
   public_cost:          {label: Cumulative public cost, unit: euros, y: [euros]}
   bills_saved:          {label: Cumulative energy bills saved, unit: euros, y: [euros]}
   buildings_by_state:   {label: Buildings by state, unit: buildings, y: [not_retrofitted, partial, retrofitted, not_modelled]}
-  cost_parts:           {label: "Price per retrofit: base cost and margin or overhead", unit: euros, y: [base, markup]}
+  cost_parts:           {label: "Price per retrofit: base cost, and vendor margin or public overhead", unit: euros, y: [base_cost, margin_or_overhead]}
   canvass_hours:        {label: Weekly canvassing hours per household, unit: hours per week, y: [q1, q2, q3, q4, q5]}
   leisure_hours:        {label: Weekly free hours left per household, unit: hours per week, y: [q1, q2, q3, q4, q5]}
   net_cash_by_quintile: {label: Household net cash since the works (paying households), unit: euros, y: [q1, q2, q3, q4, q5]}
+  buildings_by_tenure:  {label: Buildings by ownership type (placeholder rule), unit: buildings, y: [owner_occupied, condo, rental]}
+  rental_share:         {label: Share of buildings treated as rental (placeholder rule), unit: share, y: [share]}
   shared_by_state:      {label: Condo shared measures by vote state, unit: buildings, y: [pending, approved]}
 
 layout:
-  left:   [{control: params, groups: [Fiscal, Credit, Delivery, Energy, Condo]}, {control: presets}]
-  right:  [{control: legend},
-           {chart: line, series: adoption_by_quintile},
-           {chart: bar,  series: rebate_per_euro},
-           {chart: bar,  series: can_front_cost},
-           {chart: bar,  series: cost_per_retrofit},
-           {chart: line, series: net_cash_by_quintile},
-           {kpis: [public_cost, bills_saved]},
-           {control: display}]
-  bottom: [{control: timeline}]
+  left:   [{control: params, groups: [Fiscal, Credit, Delivery, Energy, Condo, Tenure (placeholder)]}, {control: presets}, {control: compare}]
+  right:  [{control: legend}, {control: display}]
+  bottom:
+    - {control: timeline}
+    - kpis:
+        - {label: Cumulative public cost, series: public_cost, unit: euros, decimals: 0}
+        - {label: Cumulative energy bills saved, series: bills_saved, unit: euros, decimals: 0}
+        - {label: "Buildings treated as rental (grey, placeholder rule)", series: rental_share, unit: share, decimals: 2}
+    - {chart: line, series: adoption_by_quintile, title: "Share of dwellings retrofitted, by income quintile"}
+    - {chart: bar,  series: rebate_per_euro,      title: "Public transfer per euro of price, by income quintile"}
+    - {chart: bar,  series: can_front_cost,       title: "Share able to pay the price now, by income quintile"}
+    - {chart: bar,  series: cost_parts,           title: "Price per retrofit, by delivery mode (compare A with B)"}
 
-banner: "Building geometry is real (OpenStreetMap, Jette, Brussels). Households, incomes and ownership are synthetic. All numbers are illustrative placeholders, not findings."
+banner: "Building geometry is real (OpenStreetMap, Jette, Brussels). Households, incomes and ownership types (including which buildings are rental) are synthetic or placeholder rules, not data. All values are illustrative placeholders, not findings."

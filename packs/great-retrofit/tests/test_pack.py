@@ -20,7 +20,6 @@ import golden_lib as g  # noqa: E402
 
 MANIFEST = yaml.safe_load((PACK / "pack.yaml").read_text())
 PD_CANDIDATES = [os.environ.get("PAPERDOLLS_DIR", ""),
-                 "/data/ScifiEconomicsLab/scifirender/paperdolls/.claude/worktrees/model-packs-6a7453",
                  "/data/ScifiEconomicsLab/scifirender/paperdolls"]
 
 
@@ -80,7 +79,8 @@ def test_entity_fields_match_frame_schema():
     from retrofit_v3.frames import BuildingFrame, BUILDING_STATES
     from retrofit_v3.entities import TENURES
     f = MANIFEST["entities"]["building"]["fields"]
-    assert set(f) <= set(BuildingFrame.__annotations__)
+    derived = {"units_done", "cannot_front"}   # computed by the pack adapter from adopted_share * units and units_cannot_front
+    assert set(f) - derived <= set(BuildingFrame.__annotations__)
     assert tuple(f["state"]["values"]) == BUILDING_STATES and tuple(f["tenure"]["values"]) == TENURES
     keys = {"adoption_by_quintile", "rebate_per_euro", "can_front_cost", "cost_per_retrofit", "public_cost", "bills_saved"}
     assert keys <= set(MANIFEST["series"])

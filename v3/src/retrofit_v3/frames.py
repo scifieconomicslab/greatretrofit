@@ -19,6 +19,7 @@ class BuildingFrame(TypedDict):
     income_q_mean: float  # mean income quintile (1..5) of the building's households
     shared_state: str     # none (no shared parts) | pending (vote not passed) | approved
     vote_yes_share: float  # floor-area share of supporters, 0 when shared_state is none
+    units_cannot_front: int  # not-yet-retrofitted units that cannot finance what they still have to pay now (0 for rental)
 
 
 class SeriesPoint(TypedDict):
@@ -35,6 +36,7 @@ class SeriesPoint(TypedDict):
     leisure_hours_by_quintile: List[float]  # 5; mean weekly free hours left after canvassing (never negative)
     net_cash_by_quintile: List[Optional[float]]  # 5; mean cumulative household net cash of households that paid for works; null if none
     shared_counts: dict                     # {pending, approved}: buildings with shared parts by vote state
+    tenure_counts: dict                     # {owner_occupied, condo, rental}: buildings by tenure (the placeholder tenure rule's outcome)
 
 
 class Frame(TypedDict):

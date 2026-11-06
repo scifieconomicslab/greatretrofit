@@ -35,6 +35,8 @@
     {"name": "canvass_strong_s15", "params": {"seed": 15, "n_buildings": 40, "horizon_months": 84, "delivery_mode": "passthrough", "consider_prob_base": 0.01, "canvass_target_hours": 6.0, "canvass_boost": 0.5, "canvass_saturation_hours": 4.0, "work_hours_by_quintile": [50, 40, 30, 30, 55], "scene_rules": {"avg_unit_area": 60.0}}},
     {"name": "canvass_off_s15", "params": {"seed": 15, "n_buildings": 40, "horizon_months": 84, "delivery_mode": "passthrough", "consider_prob_base": 0.01, "canvass_target_hours": 0.0, "canvass_boost": 0.5, "canvass_saturation_hours": 4.0, "work_hours_by_quintile": [50, 40, 30, 30, 55], "scene_rules": {"avg_unit_area": 60.0}}},
     {"name": "rebate_means_test_market_fallback_s16", "params": {"seed": 16, "n_buildings": 24, "horizon_months": 84, "means_test": true, "means_test_max_quintile": 2, "credit_access": "open", "loan_rate_risk_premium": 0.05, "deduction_rate": 0.6, "shared_measure": false}},
+    {"name": "rental_share_override_s18", "params": {"seed": 18, "n_buildings": 40, "horizon_months": 84, "rental_share_single": 0.5, "rental_share_multi": 0.6, "delivery_mode": "passthrough", "scene_rules": {"avg_unit_area": 60.0}}},
+    {"name": "rental_share_zero_s19", "params": {"seed": 19, "n_buildings": 40, "horizon_months": 60, "rental_share_single": 0.0, "rental_share_multi": 0.0, "scene_rules": {"avg_unit_area": 60.0}}},
     {"name": "public_service_means_test_market_s17", "params": {"seed": 17, "n_buildings": 24, "horizon_months": 84, "delivery_mode": "public_service", "public_capacity": 0.3, "means_test": true, "means_test_max_quintile": 2, "credit_access": "open"}}
   ],
   "scene_table_cases": [

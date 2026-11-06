@@ -52,7 +52,8 @@ def build_entities(rows: Iterable[Mapping], rules: SceneRules = SceneRules(), sc
         gross = area * storeys * rules.usable_fraction
         n_units = max(1, round(gross / rules.avg_unit_area))
         rental_share = rules.rental_share_single if n_units == 1 else rules.rental_share_multi
-        if hash_uniform(scene_seed, k, 1) < rental_share:
+        draw = hash_uniform(scene_seed, k, 1)
+        if draw < rental_share:
             tenure = "rental"
         else:
             tenure = "owner_occupied" if n_units == 1 else "condo"
@@ -61,7 +62,7 @@ def build_entities(rows: Iterable[Mapping], rules: SceneRules = SceneRules(), sc
         raw = [1.0 + rules.unit_area_spread * (2.0 * rng.random() - 1.0) for _ in range(n_units)]
         s = sum(raw)
         areas = tuple(gross * w / s for w in raw)
-        buildings.append(BuildingSpec(sid, tenure, areas))
+        buildings.append(BuildingSpec(sid, tenure, areas, draw))
     return SceneEntities(tuple(buildings), tuple(excluded), tuple(b.id for b in buildings))
 
 

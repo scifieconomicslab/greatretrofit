@@ -187,7 +187,7 @@
     vProb(r.unit_area_spread, 'unit_area_spread');
     return Object.freeze(r);
   }
-  const makeSpec = (id, tenure, unit_areas) => ({ id, tenure, unit_areas: unit_areas.slice(), units: unit_areas.length, floor_area: pySum(unit_areas) });
+  const makeSpec = (id, tenure, unit_areas, rental_draw) => ({ id, tenure, unit_areas: unit_areas.slice(), units: unit_areas.length, floor_area: pySum(unit_areas), rental_draw: rental_draw === undefined ? null : rental_draw });
 
   // rows: {id, area (footprint m2), storeys, residential}. Returns {buildings, excluded: [[id, reason]], scene_ids}.
   function buildEntities(rows, rules, sceneSeed) {
@@ -204,13 +204,14 @@
       const nUnits = Math.max(1, pyRound(gross / rules.avg_unit_area));
       const rentalShare = nUnits === 1 ? rules.rental_share_single : rules.rental_share_multi;
       let tenure;
-      if (hashUniform(sceneSeed, k, 1) < rentalShare) tenure = 'rental';
+      const draw = hashUniform(sceneSeed, k, 1);
+      if (draw < rentalShare) tenure = 'rental';
       else tenure = nUnits === 1 ? 'owner_occupied' : 'condo';
       const rng = new Rng(Math.floor(hashUniform(sceneSeed, k, 2) * 4294967296));
       const raw = [];
       for (let i = 0; i < nUnits; i++) raw.push(1.0 + rules.unit_area_spread * (2.0 * rng.random() - 1.0));
       const s = pySum(raw);
-      buildings.push(makeSpec(sid, tenure, raw.map(w => gross * w / s)));
+      buildings.push(makeSpec(sid, tenure, raw.map(w => gross * w / s), draw));
     }
     return { buildings, excluded, scene_ids: buildings.map(b => b.id) };
   }
@@ -243,6 +244,8 @@
     peer_effect: true,              // PLACEHOLDER
     loan_rate_risk_premium: 0.02,   // PLACEHOLDER
     // condo shared parts (vote)
+    rental_share_single: 0.10,      // PLACEHOLDER share of single-unit buildings treated as rental; null keeps the tenure the scene rules gave
+    rental_share_multi: 0.30,       // PLACEHOLDER share of multi-unit buildings treated as rental
     shared_measure: true,           // PLACEHOLDER
     shared_share: 0.4,              // PLACEHOLDER
     vote_threshold: 2.0 / 3.0,      // PLACEHOLDER
@@ -289,7 +292,8 @@
     for (const k of Object.keys(over)) if (!(k in DEFAULTS) && k !== 'scene_rules') throw new Error(`unknown parameter '${k}'`);
     const p = Object.assign({}, DEFAULTS, over);
     p.scene_rules = sceneRules(over.scene_rules);
-    p.buildings = (over.buildings || []).map(b => makeSpec(b.id, b.tenure, b.unit_areas));
+    p.buildings = (over.buildings || []).map(b => makeSpec(b.id, b.tenure, b.unit_areas, b.rental_draw));
+    for (const n of ['rental_share_single', 'rental_share_multi']) if (p[n] !== null) vProb(p[n], n);
     vIntPos(p.horizon_months, 'horizon_months'); vIntPos(p.n_buildings, 'n_buildings'); vIntPos(p.loan_term_months, 'loan_term_months');
     vNonneg(p.rebate_lag_months, 'rebate_lag_months');
     for (const n of ['deduction_rate', 'vendor_margin', 'public_overhead', 'public_capacity', 'consider_prob_base', 'neighbour_boost', 'savings_usable_share', 'tax_rate', 'shared_share', 'canvass_boost', 'free_time_spread']) vProb(p[n], n);
@@ -343,12 +347,23 @@
     return { units, byBuilding };
   }
 
+  // Apply rental_share_* (PLACEHOLDER tenure rule) to buildings that carry their scene draw; others keep their tenure.
+  function retenure(p, buildings) {
+    if (p.rental_share_single === null && p.rental_share_multi === null) return buildings;
+    return buildings.map(b => {
+      const share = b.units === 1 ? p.rental_share_single : p.rental_share_multi;
+      if (b.rental_draw === null || b.rental_draw === undefined || share === null) return b;
+      const tenure = b.rental_draw < share ? 'rental' : (b.units === 1 ? 'owner_occupied' : 'condo');
+      return Object.assign({}, b, { tenure });
+    });
+  }
+
   // Stepwise simulation. new Simulation(params) holds the t = 0 frame; step() advances one month and returns the new frame.
   class Simulation {
     constructor(params) {
       const p = this.p = (params && 'energy_growth_annual' in params) ? params : Params(params);   // already a Params, or a plain object
-      this.buildings = p.buildings.length ? p.buildings
-        : buildEntities(syntheticTable(p.n_buildings, p.scene_seed), p.scene_rules, p.scene_seed).buildings;
+      this.buildings = retenure(p, p.buildings.length ? p.buildings
+        : buildEntities(syntheticTable(p.n_buildings, p.scene_seed), p.scene_rules, p.scene_seed).buildings);
       const pop = population(p, this.buildings);
       this.units = pop.units; this.byB = pop.byBuilding;
       this.mode = delivery[p.delivery_mode];
@@ -476,6 +491,17 @@
       const p = this.p, buildings = this.buildings, units = this.units;
       const bfr = [], counts = { not_retrofitted: 0, partial: 0, retrofitted: 0, not_modelled: 0 };
       const sharedCounts = { pending: 0, approved: 0 };
+      const tenureCounts = { owner_occupied: 0, condo: 0, rental: 0 };
+      // can each not-yet-retrofitted unit finance what it still has to pay now? (per quintile, and per building)
+      const frontTot = [0, 0, 0, 0, 0], frontOk = [0, 0, 0, 0, 0], cannotInB = new Array(buildings.length).fill(0);
+      for (const u of units) {
+        if (u.complete || !this._canAdopt(u.bidx)) continue;
+        const base = (u.unit_done ? 0.0 : u.unit_base) + ((u.needs_shared && !u.shared_paid) ? u.shared_base : 0.0);
+        const qt = this._quote(u, base);
+        const ok = !qt.requires_financing || financing.planFinancing(qt.household_upfront, u.savings, this._limit(u), p.savings_usable_share).feasible;
+        frontTot[u.quintile - 1]++;
+        if (ok) frontOk[u.quintile - 1]++; else cannotInB[u.bidx]++;
+      }
       buildings.forEach((b, bi) => {
         let state;
         if (!this._canAdopt(bi)) state = 'not_modelled';
@@ -483,6 +509,7 @@
         else if (this.adoptedInB[bi] < b.units) state = 'partial';
         else state = 'retrofitted';
         counts[state]++;
+        tenureCounts[b.tenure]++;
         let sstate, yes;
         if (!this.needsShared[bi]) { sstate = 'none'; yes = 0.0; }
         else if (this.approved[bi]) { sstate = 'approved'; yes = this._yesShare(bi); sharedCounts.approved++; }
@@ -492,22 +519,10 @@
         for (const i of ids) qsum += units[i].quintile;
         bfr.push({
           id: b.id, state, tenure: b.tenure, units: b.units, adopted_share: this.adoptedInB[bi] / b.units,
-          income_q_mean: qsum / ids.length, shared_state: sstate, vote_yes_share: yes,
+          income_q_mean: qsum / ids.length, shared_state: sstate, vote_yes_share: yes, units_cannot_front: cannotInB[bi],
         });
       });
-      const front = [];
-      for (let q = 1; q <= 5; q++) {
-        let tot = 0, nFront = 0;
-        for (const u of units) {
-          if (u.quintile !== q || u.complete || !this._canAdopt(u.bidx)) continue;
-          tot++;
-          const base = (u.unit_done ? 0.0 : u.unit_base) + ((u.needs_shared && !u.shared_paid) ? u.shared_base : 0.0);
-          const qt = this._quote(u, base);
-          if (!qt.requires_financing) nFront++;
-          else if (financing.planFinancing(qt.household_upfront, u.savings, this._limit(u), p.savings_usable_share).feasible) nFront++;
-        }
-        front.push(tot ? nFront / tot : null);
-      }
+      const front = frontOk.map((x, k) => (frontTot[k] ? x / frontTot[k] : null));
       const canv = [0, 0, 0, 0, 0], leis = [0, 0, 0, 0, 0], cashSum = [0, 0, 0, 0, 0], cashN = [0, 0, 0, 0, 0];
       for (const u of units) {
         const k = u.quintile - 1, s = this._spend(u);
@@ -530,6 +545,7 @@
         leisure_hours_by_quintile: leis.map((x, k) => (this.qTotal[k] ? x / this.qTotal[k] : 0.0)),
         net_cash_by_quintile: cashSum.map((x, k) => (cashN[k] ? x / cashN[k] : null)),
         shared_counts: sharedCounts,
+        tenure_counts: tenureCounts,
       };
       return { schema: FRAME_SCHEMA_VERSION, t, year: t / 12.0, buildings: bfr, series };
     }
@@ -625,21 +641,25 @@
   const STATE_INDEX = Object.fromEntries(BUILDING_STATES.map((s, i) => [s, i]));
   const TENURE_INDEX = Object.fromEntries(TENURES.map((s, i) => [s, i]));
   const SHARED_INDEX = Object.fromEntries(SHARED_STATES.map((s, i) => [s, i]));
+  // No-data representation (pack-spec, "entities"): NaN in a number field or series point, -1 in a category. The v3 frame says null (frame-schema.md); only the
+  // series the frame schema marks nullable are converted, and nothing else is ever NaN. Charts and tiles draw NaN as "no data", never as zero.
   const nz = x => (x === null ? NaN : x);
 
   // v3 frame -> pack frame: category = index into the manifest's values, NaN for null, series as arrays aligned with `y`.
   function toPackFrame(fr) {
     const n = fr.buildings.length;
     const state = new Int8Array(n), tenure = new Int8Array(n), shared = new Int8Array(n), units = new Int16Array(n);
-    const share = new Float64Array(n), incomeQ = new Float64Array(n);
+    const share = new Float64Array(n), incomeQ = new Float64Array(n), done = new Int16Array(n), cannot = new Int8Array(n);
     fr.buildings.forEach((b, i) => {
+      done[i] = pyRound(b.adopted_share * b.units);
+      cannot[i] = (b.units_cannot_front > 0 && b.units_cannot_front === b.units - done[i]) ? 1 : 0;   // every unit still to do cannot pay now
       state[i] = STATE_INDEX[b.state]; tenure[i] = TENURE_INDEX[b.tenure]; shared[i] = SHARED_INDEX[b.shared_state]; units[i] = b.units;
       share[i] = b.adopted_share; incomeQ[i] = b.income_q_mean;
     });
     const s = fr.series;
     return {
       t: fr.t,
-      entities: { building: { state, tenure, adopted_share: share, units, income_q_mean: incomeQ, shared_state: shared } },
+      entities: { building: { state, tenure, adopted_share: share, units, units_done: done, cannot_front: cannot, income_q_mean: incomeQ, shared_state: shared } },
       series: {
         adoption_by_quintile: s.adoption_by_quintile.slice(),
         rebate_per_euro: s.rebate_per_euro.map(nz),
@@ -653,6 +673,8 @@
         leisure_hours: s.leisure_hours_by_quintile.slice(),
         net_cash_by_quintile: s.net_cash_by_quintile.map(nz),
         shared_by_state: [s.shared_counts.pending, s.shared_counts.approved],
+        buildings_by_tenure: TENURES.map(k => s.tenure_counts[k]),
+        rental_share: [fr.buildings.length ? s.tenure_counts.rental / fr.buildings.length : 0.0],
       },
     };
   }

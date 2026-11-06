@@ -70,3 +70,37 @@ Severity: **High** blocks the demo's purpose, **Med** misleads or hampers a poli
 - The "Display" switches (people, vehicles, ink outline, pixel, fog) were not exercised.
 - Touch input, and screen readers.
 - Anything about economic meaning: nothing was assessed, by design.
+
+## Addendum (2026-11-06): dashboard, channels, tenure preset
+
+Pack rebuilt against paperdolls `main` at f23f9d4 (P5 charts/KPIs/compare, P6 channels, P7 terrain), Jette scene as above (8,105 of 8,105 placed, no binding warnings), headless Chromium 1440x1500, `file://`, software rendering. Script: `node scripts/verify_jette_dashboard.mjs` (pictures in `docs/verification/dashboard/`, `d01` to `d11`). **No economic result is claimed.** Every number visible in those pictures is a placeholder; I looked at whether things draw, not at what they say. Note that the presets are not matched on public cost (see item B), so no comparison in the pictures is like for like.
+
+### What was checked and works
+
+- Page loads with no console messages or exceptions and no network request other than the file itself (`network_non_file` empty).
+- Dashboard: line chart (adoption by income quintile), three bar charts (public transfer per euro of price, share able to pay now, price per retrofit split into base cost and margin or overhead), three KPI tiles (public cost, bills saved, share of buildings treated as rental). Charts follow the timeline cursor; the bars move with the time shown (`d02` at month 60, `d03` at 120).
+- A/B compare: switch, B chosen from the preset list, dashed B on every chart, "B ... vs A" lines under the tiles with the arrow and sign (`d08` rebate-only vs pay direct, `d09` rebate-only vs public service, `d10` map showing B). No NaN in the page text with compare on.
+- Channels on the whole commune: `outline` (red box, "cannot pay now"; visible at street zoom and at Fit, `d04`, `d07`), `insulation` overlay on all-retrofitted buildings (green cladding, `d06`, `d07`), `segments` and wall colour on a part-retrofitted building (olive wall at the right edge of `d07`), `groundtint` (pale tiles under the commune, legend "mean over a 250 m grid").
+- Tenure alternative: preset "More rental buildings (grey, not modelled)" turns 41% of buildings grey (3,339 of 8,105 against 1,889 by default); the KPI tile and the banner say so (`d11`).
+- No-data: at month 0 the charts and tiles draw no value for series that have none yet (`NaN` in the pack frame is the spec's no-data value). The only place `NaN` reaches the page is the text readout (item A).
+
+### Looks wrong or is missing, and who owns it
+
+| # | Sev | What | Owner |
+|---|---|---|---|
+| A | Med | The text readout above the tiles (`packhost.js:402`) still prints every series raw: unrounded floats ("0.0008699434536755111") and the word `NaN` at month 0 ("base_cost NaN"). The charts and tiles beside it format and handle no-data correctly, so this strip is now redundant noise. Nothing to fix in the pack: the runtime sends what the spec declares (`NaN`), tested by `tests/test_nodata.*`. | paperdolls (readout formatting; or let a pack hide series from it) |
+| B | High for the story | The presenter story compares delivery modes "at equal public cost". The model has no budget-matching: the three presets differ a lot in public cost (month 120, placeholder values: about 48 M euros for rebate-only, 203 M for public service in the pictures). A fair comparison needs a public-budget cap or a solver that sets the rebate rate for a given cost. Not invented here. | this repo (model, needs an economist's decision on what is held equal) |
+| C | Med | No way to set the default B in the manifest: the panel opens with B unset and the presenter picks the preset by hand. Presets are named so the two pairs (rebate only vs pay direct, rebate only vs public service) are one click each. | paperdolls (manifest key for a default compare pair) |
+| D | Med | Layout: the map is a short strip above a tall dashboard in the bottom region (about 320 px of a 1000 px viewport at Fit); the charts push the map up. Charts in the right column would compete with the legend instead. A `pd-layout` change is in flight, so I left the arrangement simple. | paperdolls (`pd-layout`) |
+| E | Low | `entities.building.fields.units` triggers "declared but no mapping or component shows it" although `segments` uses it as `total`. | paperdolls (validator) |
+| F | Low | `outline` is drawn on many buildings at Fit and the commune reads red at far zoom (`d02`), which hides the wall colour. It follows the placeholder finances, not a finding, but a presenter may want it only near zoom. | paperdolls (far-zoom treatment of outlines) |
+| G | Low | Segments are hard to tell from a wall colour mix at the zoom used; I did not isolate a building with 2 of 6 units done. | not checked |
+| H | Info | `pack check packs/great-retrofit` on the folder fails the runtime-load check ("RetrofitPRNG must be loaded first") because `prng.js` and `hook.js` are not inlined; `scripts/build_jette_demo.sh` checks and builds the bundled `dist/` and keeps a TODO for `runtime.files`. The validator on main does not accept `runtime.files`, so it is not in the manifest. | paperdolls (`runtime.files`, `pd-layout`) |
+| I | Info | The tenure rule is placeholder; condo 45%, rental 23% are its outcome, not data. Candidate real figures are in `v3/docs/placeholders.md` ("Tenure rule") with their confidence; none is used. | this repo (calibration) |
+
+### Model changes behind this (this repo)
+
+- New frame fields: building `units_cannot_front` (int), series `tenure_counts`; pack-only derived fields `units_done`, `cannot_front`; pack series `buildings_by_tenure`, `rental_share`. Documented in `v3/docs/frame-schema.md`.
+- New run parameters `rental_share_single`, `rental_share_multi` (placeholders, defaults equal to the scene rules, so nothing changes unless they move), in `v3/docs/placeholders.md`. Two new parity cases (`rental_share_override_s18`, `rental_share_zero_s19`); golden files regenerated, and a check that no previous value in any golden changed.
+- No-data test (`tests/test_nodata.js`, `.py`): `null` in v3 frames and `NaN` in pack frames only in the five series the schema marks nullable, and equal to each other; entity arrays never hold NaN.
+- Not run: DPR 2, the Overpass fetch branch of the build script, touch input, a GPU-backed browser.

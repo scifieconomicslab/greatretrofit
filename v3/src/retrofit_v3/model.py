@@ -15,7 +15,7 @@ All floating-point sums are plain loops in unit-id order so the JavaScript port 
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Callable, List, Optional, Tuple
 
 from .common.rng import Rng, hash_uniform
@@ -70,6 +70,21 @@ class _Eval:
     npv: float
 
 
+def _retenure(p: Params, buildings):
+    """Apply Params.rental_share_* (PLACEHOLDER tenure rule) to buildings that carry their scene draw; others keep their tenure."""
+    if p.rental_share_single is None and p.rental_share_multi is None:
+        return buildings
+    out = []
+    for b in buildings:
+        share = p.rental_share_single if b.units == 1 else p.rental_share_multi
+        if b.rental_draw is None or share is None:
+            out.append(b)
+            continue
+        tenure = "rental" if b.rental_draw < share else ("owner_occupied" if b.units == 1 else "condo")
+        out.append(replace(b, tenure=tenure))
+    return tuple(out)
+
+
 def _population(p: Params, buildings):
     rng = Rng(p.seed)
     units, by_building = [], []
@@ -105,6 +120,7 @@ class Simulation:
         buildings = p.buildings
         if not buildings:
             buildings = build_entities(synthetic_table(p.n_buildings, p.scene_seed), p.scene_rules, p.scene_seed).buildings
+        buildings = _retenure(p, buildings)
         self.buildings = buildings
         self.units, self.by_b = _population(p, buildings)
         self.mode = DELIVERY[p.delivery_mode]
@@ -245,6 +261,20 @@ class Simulation:
         p, buildings, units = self.p, self.buildings, self.units
         bfr, counts = [], {"not_retrofitted": 0, "partial": 0, "retrofitted": 0, "not_modelled": 0}
         shared_counts = {"pending": 0, "approved": 0}
+        tenure_counts = {"owner_occupied": 0, "condo": 0, "rental": 0}
+        # can each not-yet-retrofitted unit finance what it still has to pay now? (per quintile, and per building)
+        front_tot, front_ok, cannot_in_b = [0] * 5, [0] * 5, [0] * len(buildings)
+        for u in units:
+            if u.complete or not self._can_adopt(u.bidx):
+                continue
+            base = (0.0 if u.unit_done else u.unit_base) + (u.shared_base if (u.needs_shared and not u.shared_paid) else 0.0)
+            quote = self._quote(u, base)
+            ok = (not quote.requires_financing) or plan_financing(quote.household_upfront, u.savings, self._limit(u), p.savings_usable_share).feasible
+            front_tot[u.quintile - 1] += 1
+            if ok:
+                front_ok[u.quintile - 1] += 1
+            else:
+                cannot_in_b[u.bidx] += 1
         for bi, b in enumerate(buildings):
             if not self._can_adopt(bi):
                 state = "not_modelled"
@@ -255,6 +285,7 @@ class Simulation:
             else:
                 state = "retrofitted"
             counts[state] += 1
+            tenure_counts[b.tenure] += 1
             if not self.needs_shared[bi]:
                 sstate, yes = "none", 0.0
             elif self.approved[bi]:
@@ -266,21 +297,9 @@ class Simulation:
             qs = [units[i].quintile for i in self.by_b[bi]]
             bfr.append({"id": b.id, "state": state, "tenure": b.tenure, "units": b.units,
                         "adopted_share": self.adopted_in_b[bi] / b.units,
-                        "income_q_mean": sum(qs) / len(qs), "shared_state": sstate, "vote_yes_share": yes})
-        front = []
-        for q in range(1, 6):
-            tot = n_front = 0
-            for u in units:
-                if u.quintile != q or u.complete or not self._can_adopt(u.bidx):
-                    continue
-                tot += 1
-                base = (0.0 if u.unit_done else u.unit_base) + (u.shared_base if (u.needs_shared and not u.shared_paid) else 0.0)
-                quote = self._quote(u, base)
-                if not quote.requires_financing:
-                    n_front += 1
-                else:
-                    n_front += plan_financing(quote.household_upfront, u.savings, self._limit(u), p.savings_usable_share).feasible
-            front.append(n_front / tot if tot else None)
+                        "income_q_mean": sum(qs) / len(qs), "shared_state": sstate, "vote_yes_share": yes,
+                        "units_cannot_front": cannot_in_b[bi]})
+        front = [front_ok[k] / front_tot[k] if front_tot[k] else None for k in range(5)]
         canv, leis, cash_sum, cash_n = [0.0] * 5, [0.0] * 5, [0.0] * 5, [0] * 5
         for u in units:
             k = u.quintile - 1
@@ -305,6 +324,7 @@ class Simulation:
             "leisure_hours_by_quintile": [leis[k] / self.q_total[k] if self.q_total[k] else 0.0 for k in range(5)],
             "net_cash_by_quintile": [cash_sum[k] / cash_n[k] if cash_n[k] else None for k in range(5)],
             "shared_counts": shared_counts,
+            "tenure_counts": tenure_counts,
         }
         return {"schema": FRAME_SCHEMA_VERSION, "t": t, "year": t / 12.0, "buildings": bfr, "series": series}
 
