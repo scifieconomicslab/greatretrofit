@@ -31,6 +31,14 @@ params:
                       help: "Restrict pay-direct and public service to the lowest income quintiles (placeholder cut-off: bottom two). Does not apply to the rebate."}
   energy_scenario:   {type: enum, values: [{value: flat, label: Flat}, {value: rising, label: Rising}, {value: shock, label: Shock}], default: rising,
                       label: Energy price path, group: Energy, help: "Annual growth in the value of energy savings: 0, 3 or 8 percent (placeholders)."}
+  peer_effect:       {type: boolean, default: true, label: Neighbour effect, group: Condo,
+                      help: "In condo buildings, a neighbour's retrofit raises the chance an owner follows."}
+  shared_measure:    {type: boolean, default: true, label: Shared parts need a vote, group: Condo,
+                      help: "Condo buildings retrofit windows, facade and roof together after an owners' vote; the cost is split by floor area."}
+  vote_threshold:    {type: number, min: 0.5, max: 1, step: 0.01, default: 0.6666666666666666, unit: share of floor area, label: Vote threshold, group: Condo,
+                      help: "Share of floor area that must vote yes. Two-thirds is from a secondary source and unverified."}
+  canvass_target_hours: {type: number, min: 0, max: 10, step: 0.5, default: 2.0, unit: hours per week, label: Canvassing effort, group: Condo,
+                      help: "Weekly hours supporters would spend canvassing neighbours, limited by their free time (set by working hours)."}
 
 presets:
   - {id: rebate-only,     label: Rebate only,             params: {delivery_mode: rebate_market, deduction_rate: 0.5}}
@@ -46,6 +54,7 @@ entities:
       adopted_share: number
       units:         int
       income_q_mean: number
+      shared_state:  {type: category, values: [none, pending, approved]}
 
 mappings:
   - entity: building
@@ -78,6 +87,16 @@ mappings:
     channel: wall
     scale: {type: sequential, label: Mean income quintile (synthetic), domain: [1, 5], colours: ["#f1e6c8", "#8fb5a0", "#2d5d73"]}
   - entity: building
+    field: shared_state
+    channel: wall
+    scale:
+      type: categorical
+      label: Shared parts (condo vote)
+      values:
+        none:     {colour: "#d8d4cc", label: No shared parts}
+        pending:  {colour: "#d9a066", label: Vote not passed}
+        approved: {colour: "#5f9f7a", label: Vote passed}
+  - entity: building
     field: state
     channel: overlay
     scale:
@@ -102,14 +121,20 @@ series:
   public_cost:          {label: Cumulative public cost, unit: euros, y: [euros]}
   bills_saved:          {label: Cumulative energy bills saved, unit: euros, y: [euros]}
   buildings_by_state:   {label: Buildings by state, unit: buildings, y: [not_retrofitted, partial, retrofitted, not_modelled]}
+  cost_parts:           {label: "Price per retrofit: base cost and margin or overhead", unit: euros, y: [base, markup]}
+  canvass_hours:        {label: Weekly canvassing hours per household, unit: hours per week, y: [q1, q2, q3, q4, q5]}
+  leisure_hours:        {label: Weekly free hours left per household, unit: hours per week, y: [q1, q2, q3, q4, q5]}
+  net_cash_by_quintile: {label: Household net cash since the works (paying households), unit: euros, y: [q1, q2, q3, q4, q5]}
+  shared_by_state:      {label: Condo shared measures by vote state, unit: buildings, y: [pending, approved]}
 
 layout:
-  left:   [{control: params, groups: [Fiscal, Credit, Delivery, Energy]}, {control: presets}]
+  left:   [{control: params, groups: [Fiscal, Credit, Delivery, Energy, Condo]}, {control: presets}]
   right:  [{control: legend},
            {chart: line, series: adoption_by_quintile},
            {chart: bar,  series: rebate_per_euro},
            {chart: bar,  series: can_front_cost},
            {chart: bar,  series: cost_per_retrofit},
+           {chart: line, series: net_cash_by_quintile},
            {kpis: [public_cost, bills_saved]},
            {control: display}]
   bottom: [{control: timeline}]

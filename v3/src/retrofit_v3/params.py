@@ -46,6 +46,22 @@ class Params:
     means_test: bool = False             # PLACEHOLDER restrict passthrough/public_service by income quintile
     means_test_max_quintile: int = 2     # PLACEHOLDER highest quintile eligible when means_test
     energy_scenario: str = "rising"      # PLACEHOLDER flat | rising | shock
+    peer_effect: bool = True             # PLACEHOLDER condo: a neighbour's retrofit raises the chance of following
+    loan_rate_risk_premium: float = 0.02  # PLACEHOLDER extra annual loan rate for households below the credit income threshold
+
+    # --- condo shared parts (vote) ---
+    shared_measure: bool = True          # PLACEHOLDER condo buildings (2+ units) have shared parts that need a vote
+    shared_share: float = 0.4            # PLACEHOLDER share of retrofit cost and of energy saving that sits in shared parts
+    vote_threshold: float = 2.0 / 3.0    # PLACEHOLDER share of floor area that must vote yes (secondary source: two-thirds, unverified)
+
+    # --- canvassing and the weekly time budget ---
+    canvass_target_hours: float = 2.0    # PLACEHOLDER weekly hours an advocate would spend canvassing, if free time allows
+    canvass_boost: float = 0.2           # PLACEHOLDER extra monthly consideration chance at full canvassing pressure (condo)
+    canvass_saturation_hours: float = 6.0  # PLACEHOLDER weekly canvassing hours in a building that give full pressure
+    waking_hours_per_week: float = 112.0  # PLACEHOLDER
+    committed_hours_per_week: float = 50.0  # PLACEHOLDER chores, commuting, care: hours that are neither work nor free
+    work_hours_by_quintile: Tuple[float, ...] = (42.0, 38.0, 36.0, 40.0, 48.0)  # PLACEHOLDER weekly working hours, quintile 1..5
+    free_time_spread: float = 0.3        # PLACEHOLDER +/- relative spread of free hours across households
 
     # --- energy price paths ---
     energy_growth_flat: float = 0.0      # PLACEHOLDER annual real growth of savings value
@@ -84,14 +100,22 @@ class Params:
         validate_integer_positive(self.loan_term_months, "loan_term_months")
         validate_nonnegative(self.rebate_lag_months, "rebate_lag_months")
         for name in ("deduction_rate", "vendor_margin", "public_overhead", "public_capacity",
-                     "consider_prob_base", "neighbour_boost", "savings_usable_share", "tax_rate"):
+                     "consider_prob_base", "neighbour_boost", "savings_usable_share", "tax_rate",
+                     "shared_share", "canvass_boost", "free_time_spread"):
             validate_probability(getattr(self, name), name)
         for name in ("cost_per_m2", "saving_per_m2_year", "income_log_sd", "savings_log_sd",
-                     "years_in_dwelling_min", "years_in_dwelling_max"):
+                     "years_in_dwelling_min", "years_in_dwelling_max",
+                     "canvass_saturation_hours", "waking_hours_per_week"):
             validate_positive(getattr(self, name), name)
-        for name in ("loan_rate", "discount_rate", "credit_income_threshold", "credit_loan_to_income",
+        for name in ("loan_rate", "loan_rate_risk_premium", "canvass_target_hours", "committed_hours_per_week",
+                     "discount_rate", "credit_income_threshold", "credit_loan_to_income",
                      "tax_free_allowance", "savings_months_of_income", "savings_scale"):
             validate_nonnegative(getattr(self, name), name)
+        if not 0.0 < self.vote_threshold <= 1.0:
+            raise ValueError("vote_threshold must be in (0, 1]")
+        object.__setattr__(self, "work_hours_by_quintile", tuple(float(x) for x in self.work_hours_by_quintile))
+        if len(self.work_hours_by_quintile) != 5 or any(x < 0 for x in self.work_hours_by_quintile):
+            raise ValueError("work_hours_by_quintile must be 5 non-negative numbers")
         if self.years_in_dwelling_max < self.years_in_dwelling_min:
             raise ValueError("years_in_dwelling_max must be >= years_in_dwelling_min")
         if self.delivery_mode not in DELIVERY_MODES:

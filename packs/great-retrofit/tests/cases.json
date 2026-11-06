@@ -25,7 +25,17 @@
         {"id": "b", "tenure": "condo", "unit_areas": [60.0, 75.5, 82.25, 90.0, 64.0, 71.0]},
         {"id": "c", "tenure": "rental", "unit_areas": [55.0, 55.0]},
         {"id": "d", "tenure": "condo", "unit_areas": [80.0, 80.0, 95.0]}
-      ]}}
+      ]}},
+    {"name": "condo_peer_on_noshared_s11", "params": {"seed": 11, "n_buildings": 40, "horizon_months": 84, "shared_measure": false, "peer_effect": true, "neighbour_boost": 0.4, "canvass_target_hours": 0.0, "delivery_mode": "passthrough", "consider_prob_base": 0.02, "scene_rules": {"avg_unit_area": 60.0}}},
+    {"name": "condo_peer_off_noshared_s11", "params": {"seed": 11, "n_buildings": 40, "horizon_months": 84, "shared_measure": false, "peer_effect": false, "neighbour_boost": 0.4, "canvass_target_hours": 0.0, "delivery_mode": "passthrough", "consider_prob_base": 0.02, "scene_rules": {"avg_unit_area": 60.0}}},
+    {"name": "shared_vote_100_passthrough_s12", "params": {"seed": 12, "n_buildings": 40, "horizon_months": 84, "delivery_mode": "passthrough", "vote_threshold": 1.0, "consider_prob_base": 0.02, "scene_rules": {"avg_unit_area": 60.0}}},
+    {"name": "shared_vote_twothirds_passthrough_s12", "params": {"seed": 12, "n_buildings": 40, "horizon_months": 84, "delivery_mode": "passthrough", "vote_threshold": 0.6666666666666666, "consider_prob_base": 0.02, "scene_rules": {"avg_unit_area": 60.0}}},
+    {"name": "shared_vote_rebate_open_credit_s13", "params": {"seed": 13, "n_buildings": 40, "horizon_months": 120, "credit_access": "open", "deduction_rate": 0.5, "refundable": true, "shared_share": 0.5, "scene_rules": {"avg_unit_area": 60.0}}},
+    {"name": "shared_public_service_capacity_s14", "params": {"seed": 14, "n_buildings": 40, "horizon_months": 84, "delivery_mode": "public_service", "public_capacity": 0.4, "scene_rules": {"avg_unit_area": 60.0}}},
+    {"name": "canvass_strong_s15", "params": {"seed": 15, "n_buildings": 40, "horizon_months": 84, "delivery_mode": "passthrough", "consider_prob_base": 0.01, "canvass_target_hours": 6.0, "canvass_boost": 0.5, "canvass_saturation_hours": 4.0, "work_hours_by_quintile": [50, 40, 30, 30, 55], "scene_rules": {"avg_unit_area": 60.0}}},
+    {"name": "canvass_off_s15", "params": {"seed": 15, "n_buildings": 40, "horizon_months": 84, "delivery_mode": "passthrough", "consider_prob_base": 0.01, "canvass_target_hours": 0.0, "canvass_boost": 0.5, "canvass_saturation_hours": 4.0, "work_hours_by_quintile": [50, 40, 30, 30, 55], "scene_rules": {"avg_unit_area": 60.0}}},
+    {"name": "rebate_means_test_market_fallback_s16", "params": {"seed": 16, "n_buildings": 24, "horizon_months": 84, "means_test": true, "means_test_max_quintile": 2, "credit_access": "open", "loan_rate_risk_premium": 0.05, "deduction_rate": 0.6, "shared_measure": false}},
+    {"name": "public_service_means_test_market_s17", "params": {"seed": 17, "n_buildings": 24, "horizon_months": 84, "delivery_mode": "public_service", "public_capacity": 0.3, "means_test": true, "means_test_max_quintile": 2, "credit_access": "open"}}
   ],
   "scene_table_cases": [
     {"name": "scene_rows_a", "scene_seed": 3, "rows": [

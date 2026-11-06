@@ -41,6 +41,20 @@ def test_cases_cover_every_mode_and_credit_setting():
         assert json.loads((g.GOLDEN / f"{c['name']}.json").read_text())["events"], c["name"]
 
 
+def test_cases_cover_new_mechanisms_both_ways():
+    ps = {c["name"]: c["params"] for c in CASES["cases"]}
+    flags = lambda key, default: {p.get(key, default) for p in ps.values()}   # noqa: E731
+    assert flags("peer_effect", True) == {True, False} and flags("shared_measure", True) == {True, False}
+    assert flags("means_test", False) == {True, False}
+    assert flags("energy_scenario", "rising") == {"flat", "rising", "shock"}
+    assert {"vote_threshold" in p and p["vote_threshold"] for p in ps.values()} >= {1.0, 0.6666666666666666}
+    assert flags("canvass_target_hours", 2.0) >= {0.0, 6.0, 2.0}
+    assert any(p.get("means_test") and p.get("delivery_mode", "rebate_market") == "rebate_market" for p in ps.values())
+    for name in ("shared_vote_100_passthrough_s12", "shared_vote_twothirds_passthrough_s12", "shared_vote_rebate_open_credit_s13",
+                 "shared_public_service_capacity_s14"):
+        assert json.loads((g.GOLDEN / f"{name}.json").read_text())["votes"], name
+
+
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
 def test_js_matches_golden():
     r = subprocess.run(["node", str(Path(__file__).with_name("test_parity.js"))], capture_output=True, text=True, timeout=300)

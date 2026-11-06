@@ -280,7 +280,7 @@ Phase numbers here are project phases; P-numbers above are paperdolls tasks.
 - Decide v2's fate for the demo (out of scope is acceptable).
 
 ### Phase 1: v3 core in Python (about 2 weeks)
-- `v3/src/retrofit_v3/` in the repo's existing conventions. Tests: seed reproducibility; state-count conservation; rebate never exceeds cost or tax capacity; shared-part measure passes only at the voting threshold; retrofit never exceeds financing (savings plus credit) unless pass-through or public service; rebate never exceeds cost or tax payable; public service never exceeds its capacity; monotonicity (higher subsidy never lowers adoption); zero-savings world gives zero adoption.
+- `v3/src/retrofit_v3/` in the repo's existing conventions. Tests: seed reproducibility; state-count conservation; rebate never exceeds cost or tax payable; shared-part measure passes only at the voting threshold; retrofit never exceeds financing (savings plus credit) unless pass-through or public service; public service never exceeds its capacity; monotonicity (higher subsidy never lowers adoption); zero-savings world gives zero adoption.
 - `scripts/sweep_v3.py`: subsidy × income sweep.
 - **Go/no-go:** does a rebate-only policy reproduce a regressive pattern, and which lever closes it? If not, take the finding to the economists before more UI work.
 

@@ -17,6 +17,8 @@ class BuildingFrame(TypedDict):
     units: int
     adopted_share: float  # retrofitted units / units, 0..1
     income_q_mean: float  # mean income quintile (1..5) of the building's households
+    shared_state: str     # none (no shared parts) | pending (vote not passed) | approved
+    vote_yes_share: float  # floor-area share of supporters, 0 when shared_state is none
 
 
 class SeriesPoint(TypedDict):
@@ -28,6 +30,11 @@ class SeriesPoint(TypedDict):
     bills_saved: float                      # cumulative household energy bills saved
     state_counts: dict                      # building state -> count
     adopted_units: int
+    cost_per_retrofit_parts: Optional[dict]  # {base, markup}: mean base cost and mean vendor margin / public overhead; sum = cost_per_retrofit
+    canvass_hours_by_quintile: List[float]  # 5; mean weekly canvassing hours per household
+    leisure_hours_by_quintile: List[float]  # 5; mean weekly free hours left after canvassing (never negative)
+    net_cash_by_quintile: List[Optional[float]]  # 5; mean cumulative household net cash of households that paid for works; null if none
+    shared_counts: dict                     # {pending, approved}: buildings with shared parts by vote state
 
 
 class Frame(TypedDict):

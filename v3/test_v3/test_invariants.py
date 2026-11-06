@@ -82,8 +82,11 @@ def test_public_service_respects_capacity(cap):
     quota = cap * r.n_units / 12
     cum = 0
     per_month = {}
-    for e in r.events:
-        per_month[e.month] = per_month.get(e.month, 0) + 1
+    for e in r.events:      # capacity is used by subsidised unit/whole retrofits ...
+        if e.kind != "shared" and e.subsidised:
+            per_month[e.month] = per_month.get(e.month, 0) + 1
+    for v in r.votes:       # ... and by shared measures
+        per_month[v.month] = per_month.get(v.month, 0) + v.slots_used
     for m in range(p.horizon_months):
         cum += per_month.get(m, 0)
         assert per_month.get(m, 0) <= quota + 1
@@ -115,7 +118,11 @@ def test_zero_savings_world_gives_zero_adoption():
 
 def test_means_test_restricts_eligibility():
     r = run_simulation(replace(BASE, delivery_mode="passthrough", means_test=True, means_test_max_quintile=2))
-    assert r.adopted_units > 0 and all(e.quintile <= 2 for e in r.events)
+    assert r.adopted_units > 0
+    for e in r.events:
+        assert e.subsidised == (e.quintile <= 2)
+        if not e.subsidised:        # outside the means test: market purchase, own financing, no public money
+            assert e.state_pays_now == 0 and e.rebate == 0 and e.from_savings + e.loan == pytest.approx(e.price)
 
 
 def test_params_validation():

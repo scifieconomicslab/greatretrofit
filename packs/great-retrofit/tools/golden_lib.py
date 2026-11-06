@@ -32,7 +32,7 @@ def params_from_case(d):
 
 def case_output(case):
     r = run_simulation(params_from_case(case["params"]))
-    return {"frames": r.frames, "events": [e.__dict__ for e in r.events], "n_units": r.n_units, "n_buildings": r.n_buildings}
+    return {"frames": r.frames, "events": [e.__dict__ for e in r.events], "votes": [v.__dict__ for v in r.votes], "n_units": r.n_units, "n_buildings": r.n_buildings}
 
 
 def scene_output(case):

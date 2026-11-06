@@ -40,7 +40,7 @@ function check(name, want, got) {
 for (const c of cases.cases) {
   const want = JSON.parse(fs.readFileSync(path.join(dir, 'golden', c.name + '.json'), 'utf8'));
   const r = R.runSimulation(c.params);
-  check(c.name, want, { frames: r.frames, events: r.events, n_units: r.n_units, n_buildings: r.n_buildings });
+  check(c.name, want, { frames: r.frames, events: r.events, votes: r.votes, n_units: r.n_units, n_buildings: r.n_buildings });
 }
 const scenes = JSON.parse(fs.readFileSync(path.join(dir, 'golden', 'scene_tables.json'), 'utf8'));
 for (const c of cases.scene_table_cases) {
