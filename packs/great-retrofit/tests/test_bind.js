@@ -74,4 +74,32 @@ test('empty and missing scenes bind to nothing', () => {
   assert.strictEqual(bindScene({}).entities.building.count, 0);
   assert.strictEqual(bindScene({ buildings: [] }).report.modelled, 0);
 });
+
+test('paperdolls ingest classes: residential, probable (a guess, counted) and other', () => {
+  const sc = { buildings: [
+    { id: 'a', area: 100, levels: 2, residential: 'residential', osm: { building: 'house' } },
+    { id: 'b', area: 90, levels: 2, residential: 'probable', osm: { building: 'yes' } },
+    { id: 'c', area: 20, levels: 1, residential: 'other', osm: { building: 'yes' } },
+    { id: 'd', area: 500, levels: 2, residential: 'other', osm: { building: 'yes' } } ] };
+  const r = bindScene(sc, { sceneSeed: 1 });
+  assert.deepStrictEqual(r.sceneIds, ['a', 'b']);
+  assert.strictEqual(r.report.excluded.non_residential, 2);
+  assert.strictEqual(r.report.assumed.residential, 1);
+});
+
+test('hook.js gives the registered runtime a bindScene in the shape paperdolls expects, and init reads the bound specs', () => {
+  const reg = {};
+  const g = { PaperDolls: { registerRuntime(id, impl) { reg[id] = impl; } } };
+  // load order as in the bundle: hook, runtime, bind (same global object)
+  const fs = require('fs'), path = require('path'), vm = require('vm');
+  const ctx = vm.createContext({ console }); ctx.globalThis = ctx; ctx.PaperDolls = g.PaperDolls;
+  for (const f of ['../../v3/js/prng.js', 'hook.js', 'runtime.js', 'bind.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), ctx, { filename: f });
+  const impl = reg['great-retrofit'];
+  assert.strictEqual(typeof impl.bindScene, 'function');
+  const res = impl.bindScene(old);
+  assert.strictEqual(res.entities.building.count, res.sceneIndex.building.length);
+  assert.ok(Array.isArray(res.entities.building.attrs.specs));
+  const h = impl.init({ delivery_mode: 'rebate_market' }, { building: { count: res.entities.building.count, attrs: res.entities.building.attrs } }, 1);
+  assert.strictEqual(impl.step(h, 0)[0].entities.building.units.length, res.entities.building.count);
+});
 process.exit(failed ? 1 : 0);

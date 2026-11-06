@@ -47,7 +47,8 @@ presets:
 
 entities:
   building:
-    count: 200
+    count: 200          # fallback when there is no scene (synthetic buildings)
+    from: scene
     fields:
       state:         {type: category, values: [not_retrofitted, partial, retrofitted, not_modelled]}
       tenure:        {type: category, values: [owner_occupied, condo, rental]}

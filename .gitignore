@@ -29,3 +29,8 @@ Thumbs.db
 
 # Editable install
 *.egg-info/
+
+# Jette demo: scene cache, built page, pack bundle
+cache/
+build/
+packs/great-retrofit/dist/

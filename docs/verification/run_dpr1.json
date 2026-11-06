@@ -1,0 +1,171 @@
+{
+  "page": "build/jette_retrofit.html",
+  "dpr": 1,
+  "load_ms": 3521,
+  "binding": {
+    "ok": true,
+    "bound": true,
+    "placed": 8105,
+    "count": 8105,
+    "nScene": 9214,
+    "warnings": [],
+    "scene_buildings": 9214,
+    "mode": "worker",
+    "error": null,
+    "banner": "Building geometry is real (OpenStreetMap, Jette, Brussels). Households, incomes and ownership are synthetic. All numbers are illustrative placeholders, not findings. Each model building stands on the scene building it was made from (8105 of 8105 placed). People, vehicles and trees are decoration."
+  },
+  "first_frame": "[6216,0,0,1889]",
+  "frame_far": {
+    "idle": {
+      "frames": 29,
+      "mean_ms": 69.2,
+      "p50_ms": 16.7,
+      "p95_ms": 416.7,
+      "max_ms": 433.3
+    },
+    "playing": {
+      "frames": 181,
+      "mean_ms": 27.8,
+      "p50_ms": 33.3,
+      "p95_ms": 50,
+      "max_ms": 50.1
+    },
+    "months_played": 120,
+    "slider_drag": {
+      "frames": 172,
+      "mean_ms": 17.5,
+      "p50_ms": 16.7,
+      "p95_ms": 33.2,
+      "max_ms": 33.5
+    },
+    "after_slider": {
+      "params": {
+        "deduction_rate": 0.85,
+        "refundable": false,
+        "rebate_lag_months": 12,
+        "credit_access": "income_tested",
+        "loan_rate": 0.04,
+        "delivery_mode": "rebate_market",
+        "vendor_margin": 0.15,
+        "public_overhead": 0.1,
+        "public_capacity": 0.05,
+        "means_test": false,
+        "energy_scenario": "rising"
+      },
+      "runs": 2,
+      "last_run_ms": 1014
+    }
+  },
+  "frame_near": {
+    "idle": {
+      "frames": 55,
+      "mean_ms": 36.4,
+      "p50_ms": 33.4,
+      "p95_ms": 50,
+      "max_ms": 50.1
+    },
+    "playing": {
+      "frames": 112,
+      "mean_ms": 44.7,
+      "p50_ms": 50,
+      "p95_ms": 50.1,
+      "max_ms": 66.7
+    },
+    "months_played": 121,
+    "slider_drag": {
+      "frames": 71,
+      "mean_ms": 42.4,
+      "p50_ms": 49.9,
+      "p95_ms": 50.1,
+      "max_ms": 50.1
+    }
+  },
+  "pick": [
+    {
+      "x": 535,
+      "y": 291,
+      "selection": "{\"entity\":\"building\",\"id\":1204}"
+    },
+    {
+      "x": 801,
+      "y": 422,
+      "selection": "{\"entity\":\"building\",\"id\":2155}"
+    },
+    {
+      "x": 636,
+      "y": 553,
+      "selection": "{\"entity\":\"building\",\"id\":1866}"
+    }
+  ],
+  "inspector_text": "Building 1867\n×\nstate\nSome units retrofitted\ntenure\nCondo\nadopted_share\n0.667\nunits\n3\nincome_q_mean\n4.333",
+  "after_escape": "null",
+  "preset_public": "[3121,1909,1186,1889] @t=60",
+  "wall_choices": [
+    {
+      "label": "Credit access",
+      "options": [
+        "Income tested",
+        "Open to all",
+        "No credit"
+      ]
+    },
+    {
+      "label": "Delivery mode",
+      "options": [
+        "Rebate, market vendor",
+        "Pay the vendor direct",
+        "Public retrofit service"
+      ]
+    },
+    {
+      "label": "Energy price path",
+      "options": [
+        "Flat",
+        "Rising",
+        "Shock"
+      ]
+    },
+    {
+      "label": "Colour walls by ",
+      "options": [
+        "Retrofit state",
+        "Units retrofitted",
+        "Ownership type",
+        "Mean income quintile (synthetic)"
+      ]
+    },
+    {
+      "label": "Speed 6 months per second24 months per s",
+      "options": [
+        "6 months per second",
+        "24 months per second",
+        "72 months per second"
+      ]
+    }
+  ],
+  "narrow": {
+    "scrollW": 375,
+    "clientW": 375,
+    "overflowX": false,
+    "canvas": [
+      [
+        375,
+        240
+      ],
+      [
+        375,
+        240
+      ],
+      [
+        375,
+        240
+      ]
+    ]
+  },
+  "network_requests": [
+    "file:///data/ScifiEconomicsLab/TheGreatRetrofit/.claude/worktrees/gr-integration-dfe40a/build/jette_...",
+    "blob:null/37611756-2bc3-4c22-a50f-b65a85648926"
+  ],
+  "network_non_file": [],
+  "console": []
+}
