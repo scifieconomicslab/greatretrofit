@@ -1,6 +1,6 @@
 # Placeholders in v3
 
-Every value below is a stand-in, chosen only so the structure runs and the tests are meaningful. **None is calibrated or sourced.** No regressivity or other substantive result may be quoted from runs on these defaults. "Q" refers to [the economist questions](../../docs/plans/2026-11-06-economist-questions.md).
+Every value below is a stand-in, chosen only so the structure runs and the tests are meaningful. **None is calibrated or sourced.** No regressivity or other substantive result may be quoted from runs on these defaults. "Q" refers to the numbered open questions held outside this repository.
 
 A test (`test_docs_sync.py`) fails if a `# PLACEHOLDER` in `params.py` / `scene_entities.py` is missing here, or the reverse.
 

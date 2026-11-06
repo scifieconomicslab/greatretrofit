@@ -2,7 +2,7 @@
 
 Date: 2026-11-06. Status: draft. Revision 2 adds a paperdolls upgrade workstream and a per-model UI architecture ("model packs").
 
-Companion file: [economist questions](2026-11-06-economist-questions.md), to be sent separately.
+The list of open questions for the economists is kept separately and is not part of this repository.
 
 ## 1. What we are building
 
@@ -43,7 +43,7 @@ The viewer's JS engine (`vizlib.js`, `assetlib.js`, `buildinglib.js`, `replay.js
 
 ## 4. v3 model (summary; full spec after economists' answers)
 
-Revised after the first economist reply: the model is **economic, not social**. Households act when the money works over a time frame; there is no ideology premium and no solidarity lever (both parked, see questions 21-22).
+Revised after the first economist reply: the model is **economic, not social**. Households act when the money works over a time frame; there is no ideology premium and no solidarity lever (both parked, pending the economists' answers).
 
 **Agents.**
 - *Household:* income, tax payable, liquid savings, age and expected years in dwelling, weekly time budget (working hours), credit access.
@@ -329,7 +329,7 @@ Phases 1-3 touch different folders and can run in parallel. Anything in Phase 4 
 
 ## 9. Immediate next steps
 
-1. Send the revised economist questions (30, with ten priorities in Part 1).
+1. Send the revised economist questions (30, with ten priorities).
 2. Fork/branch paperdolls and start P1 against the toy epidemic.
 3. Run the whole-commune Jette ingest and record what breaks (P8).
 4. Draft the v3 spec as soon as the answers on tenure, voting rule and cost sharing arrive.
