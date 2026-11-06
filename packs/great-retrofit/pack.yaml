@@ -69,6 +69,7 @@ mappings:
   - entity: building
     field: state
     channel: wall
+    colour: wall+roof
     scale:
       type: categorical
       label: Retrofit state
@@ -80,10 +81,12 @@ mappings:
   - entity: building
     field: adopted_share
     channel: wall
+    colour: wall+roof
     scale: {type: sequential, label: Units retrofitted, domain: [0, 1], colours: ["#e8dcc8", "#e0a43c", "#2f7d5b"]}
   - entity: building
     field: tenure
     channel: wall
+    colour: wall+roof
     scale:
       type: categorical
       label: Ownership type
@@ -94,10 +97,12 @@ mappings:
   - entity: building
     field: income_q_mean
     channel: wall
+    colour: wall+roof
     scale: {type: sequential, label: Mean income quintile (synthetic), domain: [1, 5], colours: ["#f1e6c8", "#8fb5a0", "#2d5d73"]}
   - entity: building
     field: shared_state
     channel: wall
+    colour: wall+roof
     scale:
       type: categorical
       label: Shared parts (condo vote)
