@@ -28,7 +28,7 @@ params:
   public_capacity:   {type: number, min: 0, max: 1, step: 0.01, default: 0.05, unit: share per year, label: Public service capacity, group: Delivery,
                       help: "Largest share of all dwelling units the public service can complete in a year."}
   means_test:        {type: boolean, default: false, label: Means test, group: Delivery,
-                      help: "Restrict pay-direct and public service to the lowest income quintiles (placeholder cut-off: bottom two). Does not apply to the rebate."}
+                      help: "Restrict all three delivery modes to the lowest income quintiles (placeholder cut-off: bottom two): the rebate, pay-direct and the public service. A household above the cut-off buys on the market at the vendor price, with no rebate and no public payment."}
   energy_scenario:   {type: enum, values: [{value: flat, label: Flat}, {value: rising, label: Rising}, {value: shock, label: Shock}], default: rising,
                       label: Energy price path, group: Energy, help: "Annual growth in the value of energy savings: 0, 3 or 8 percent (placeholders)."}
   peer_effect:       {type: boolean, default: true, label: Neighbour effect, group: Condo,

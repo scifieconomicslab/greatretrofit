@@ -15,7 +15,7 @@ A test (`test_docs_sync.py`) fails if a `# PLACEHOLDER` in `params.py` / `scene_
 | `vendor_margin` | 0.15 | market vendor margin over base cost | Q5 |
 | `public_overhead` | 0.10 | public service overhead over base cost | Q5 |
 | `public_capacity` | 0.05 | max share of all units the service completes per year | Q5, Q15 |
-| `means_test` | False | restrict passthrough/public_service by income quintile | Q5, Q20 |
+| `means_test` | False | restrict all delivery modes (rebate, passthrough, public_service) by income quintile; outside it: market purchase, no subsidy | Q5, Q20 |
 | `means_test_max_quintile` | 2 | highest quintile eligible when means_test | Q5 |
 | `energy_scenario` | "rising" | flat | rising | shock | Q9 |
 | `peer_effect` | True | condo: a neighbour's retrofit raises the chance of following (off: `neighbour_boost` is ignored) | Q8 |

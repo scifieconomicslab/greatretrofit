@@ -126,7 +126,7 @@ gross  = deduction_rate × price
 rebate = min(gross, price)                          if refundable
        = min(gross, price, tax_left_i)              otherwise
 ```
-The rebate arrives `rebate_lag_months` after the payment: lag 0 is paid in the month of the payment (it shows in that month's frame), lag L >= 1 in month t + L. A fractional lag is rounded half to even to whole months by `Params`. `tax_left_i` is reduced by each rebate granted, so a household's one year of tax capacity is shared among all its payments (own part and shared part); there is no carry-forward to later years. The non-refundable cap is the **tax-capacity channel** of regressivity; credit access (7.2) is the other.
+The rebate arrives `rebate_lag_months` after the payment: lag 0 is paid in the month of the payment (it shows in the frame that step emits), lag L >= 1 in month t + L. A fractional lag is rounded half to even to whole months by `Params`. `tax_left_i` is reduced by each rebate granted, so a household's one year of tax capacity is shared among all its payments (own part and shared part); there is no carry-forward to later years. The non-refundable cap is the **tax-capacity channel** of regressivity; credit access (7.2) is the other.
 
 ### 7.2 Credit access
 | Rule | Credit limit |

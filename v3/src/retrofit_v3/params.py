@@ -44,7 +44,7 @@ class Params:
     vendor_margin: float = 0.15          # PLACEHOLDER market vendor margin over base cost
     public_overhead: float = 0.10        # PLACEHOLDER public service overhead over base cost
     public_capacity: float = 0.05        # PLACEHOLDER max share of all units the service completes per year
-    means_test: bool = False             # PLACEHOLDER restrict passthrough/public_service by income quintile
+    means_test: bool = False             # PLACEHOLDER restrict all delivery modes (rebate, passthrough, public_service) by income quintile; outside it: market purchase, no subsidy
     means_test_max_quintile: int = 2     # PLACEHOLDER highest quintile eligible when means_test
     energy_scenario: str = "rising"      # PLACEHOLDER flat | rising | shock
     peer_effect: bool = True             # PLACEHOLDER condo: a neighbour's retrofit raises the chance of following
