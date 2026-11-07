@@ -13,13 +13,12 @@ from dataclasses import dataclass, field
 from typing import Iterable, Mapping, Tuple
 
 from .common.rng import Rng, hash_uniform
-from .entities import BuildingSpec
+from .entities import MAX_UNITS_PER_BUILDING, BuildingSpec
 from .common.validation import validate_positive, validate_probability
 
 
-# Largest number of dwellings one scene building can get. A building above it (a huge footprint times many levels: bad geometry) keeps its floor
-# area but is split into this many units, and build_entities reports it in `capped` (and warns). Same constant in runtime.js (SM-9).
-MAX_UNITS_PER_BUILDING = 1000
+# MAX_UNITS_PER_BUILDING (entities.py): a scene building above it (a huge footprint times many levels: bad geometry) keeps its floor area but is split
+# into this many units, and build_entities reports it in `capped` (and warns). Same constant in runtime.js (SM-9).
 
 
 def scene_key(row_id, index: int) -> str:

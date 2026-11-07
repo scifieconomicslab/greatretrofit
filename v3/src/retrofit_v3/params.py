@@ -10,13 +10,16 @@ from dataclasses import dataclass, field
 from typing import Optional, Tuple
 
 from .common.validation import (
+    validate_bool,
+    validate_finite,
+    validate_integer,
     validate_integer_positive,
     validate_nonnegative,
     validate_positive,
     validate_probability,
 )
 from .credit import CREDIT_ACCESS
-from .entities import BuildingSpec
+from .entities import BuildingSpec, validate_building_spec
 from .scene_entities import SceneRules
 
 DELIVERY_MODES = ("rebate_market", "passthrough", "public_service")
@@ -100,6 +103,27 @@ class Params:
     years_in_dwelling_max: float = 25.0  # PLACEHOLDER
 
     def __post_init__(self):
+        # The same rules and the same accepted/rejected values as the JS Params (runtime.js); shared vectors: tests/model/validation_vectors.json.
+        # Numbers must be finite real numbers (no NaN, inf, bool, str, None); whole-number fields accept an integer-valued float (3.0) like JS; and are stored as int.
+        for name in ("keep_frames", "refundable", "means_test", "peer_effect", "shared_measure"):
+            validate_bool(getattr(self, name), name)
+        for name in ("seed", "scene_seed"):
+            validate_integer(getattr(self, name), name)
+        for name in ("seed", "scene_seed", "horizon_months", "n_buildings", "loan_term_months", "means_test_max_quintile"):
+            validate_integer(getattr(self, name), name)
+            object.__setattr__(self, name, int(getattr(self, name)))
+        if not isinstance(self.buildings, (tuple, list)):
+            raise ValueError(f"buildings must be a list of BuildingSpec, got {self.buildings!r}")
+        for i, b in enumerate(self.buildings):
+            validate_building_spec(b, i)
+        object.__setattr__(self, "buildings", tuple(self.buildings))
+        if not isinstance(self.scene_rules, SceneRules):
+            raise ValueError(f"scene_rules must be a SceneRules, got {self.scene_rules!r}")
+        for name in ("income_log_mean", "energy_growth_flat", "energy_growth_rising", "energy_growth_shock"):
+            validate_finite(getattr(self, name), name)
+        for name in ("energy_growth_flat", "energy_growth_rising", "energy_growth_shock"):
+            if getattr(self, name) <= -1.0:
+                raise ValueError(f"{name} must be above -1 (an annual growth of -100% or less has no monthly rate), got {getattr(self, name)}")
         validate_integer_positive(self.horizon_months, "horizon_months")
         validate_integer_positive(self.n_buildings, "n_buildings")
         validate_integer_positive(self.loan_term_months, "loan_term_months")
@@ -122,13 +146,22 @@ class Params:
         for name in ("rental_share_single", "rental_share_multi"):
             if getattr(self, name) is not None:
                 validate_probability(getattr(self, name), name)
+        validate_finite(self.vote_threshold, "vote_threshold")
         if not 0.0 < self.vote_threshold <= 1.0:
             raise ValueError("vote_threshold must be in (0, 1]")
-        object.__setattr__(self, "work_hours_by_quintile", tuple(float(x) for x in self.work_hours_by_quintile))
-        if len(self.work_hours_by_quintile) != 5 or any(x < 0 for x in self.work_hours_by_quintile):
-            raise ValueError("work_hours_by_quintile must be 5 non-negative numbers")
+        w = self.work_hours_by_quintile
+        if not isinstance(w, (tuple, list)) or len(w) != 5:
+            raise ValueError(f"work_hours_by_quintile must be 5 non-negative numbers, got {w!r}")
+        for k, x in enumerate(w):
+            validate_finite(x, f"work_hours_by_quintile[{k}]")
+            if x < 0:
+                raise ValueError("work_hours_by_quintile must be 5 non-negative numbers")
+        object.__setattr__(self, "work_hours_by_quintile", tuple(float(x) for x in w))
         if self.years_in_dwelling_max < self.years_in_dwelling_min:
             raise ValueError("years_in_dwelling_max must be >= years_in_dwelling_min")
+        for name, allowed in (("delivery_mode", DELIVERY_MODES), ("credit_access", CREDIT_ACCESS), ("energy_scenario", ENERGY_SCENARIOS)):
+            if not isinstance(getattr(self, name), str):
+                raise ValueError(f"{name} must be one of {allowed}, got {getattr(self, name)!r}")
         if self.delivery_mode not in DELIVERY_MODES:
             raise ValueError(f"delivery_mode must be one of {DELIVERY_MODES}, got {self.delivery_mode!r}")
         if self.credit_access not in CREDIT_ACCESS:

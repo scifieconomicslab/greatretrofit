@@ -48,10 +48,17 @@
   }
 
   // ---- validation (common/validation.py) -----------------------------------------------------
-  const vPositive = (v, n) => { if (!(v > 0)) throw new Error(`${n} must be positive, got ${v}`); };
-  const vNonneg = (v, n) => { if (!(v >= 0)) throw new Error(`${n} must be non-negative, got ${v}`); };
-  const vProb = (v, n) => { if (!(v >= 0 && v <= 1)) throw new Error(`${n} must be in [0, 1], got ${v}`); };
-  const vIntPos = (v, n) => { if (!Number.isInteger(v) || v <= 0) throw new Error(`${n} must be a positive integer, got ${v}`); };
+  // The same rules, with the same accepted and rejected values, as v3/src/retrofit_v3/common/validation.py (shared vectors: tests/model/validation_vectors.json).
+  // A number is a finite real number: not NaN, not +/-Infinity, not a boolean, string, null or array (JS comparisons would coerce those).
+  const show = v => (typeof v === 'string' ? JSON.stringify(v) : String(v));
+  const vFinite = (v, n) => { if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`${n} must be a finite number, got ${show(v)}`); };
+  const vPositive = (v, n) => { vFinite(v, n); if (!(v > 0)) throw new Error(`${n} must be positive, got ${v}`); };
+  const vNonneg = (v, n) => { vFinite(v, n); if (!(v >= 0)) throw new Error(`${n} must be non-negative, got ${v}`); };
+  const vProb = (v, n) => { vFinite(v, n); if (!(v >= 0 && v <= 1)) throw new Error(`${n} must be in [0, 1], got ${v}`); };
+  const vInt = (v, n) => { vFinite(v, n); if (!Number.isInteger(v)) throw new Error(`${n} must be a whole number, got ${v}`); };
+  const vIntPos = (v, n) => { vInt(v, n); if (v <= 0) throw new Error(`${n} must be a positive integer, got ${v}`); };
+  const vBool = (v, n) => { if (typeof v !== 'boolean') throw new Error(`${n} must be true or false, got ${show(v)}`); };
+  const vEnum = (v, list, n) => { if (typeof v !== 'string' || !list.includes(v)) throw new Error(`${n} must be one of ${list.join(', ')}, got ${show(v)}`); };
 
   // ---- npv.py --------------------------------------------------------------------------------
   const npv = {
@@ -181,6 +188,8 @@
     usable_fraction: 0.8, avg_unit_area: 80.0, rental_share_single: 0.10, rental_share_multi: 0.30, unit_area_spread: 0.2,
   };
   function sceneRules(o) {
+    if (o !== undefined && (o === null || typeof o !== 'object' || Array.isArray(o))) throw new Error(`scene_rules must be an object, got ${show(o)}`);
+    for (const k of Object.keys(o || {})) if (!(k in SCENE_RULE_DEFAULTS)) throw new Error(`unknown scene rule '${k}'`);
     const r = Object.assign({}, SCENE_RULE_DEFAULTS, o || {});
     vProb(r.usable_fraction, 'usable_fraction'); vPositive(r.avg_unit_area, 'avg_unit_area');
     vProb(r.rental_share_single, 'rental_share_single'); vProb(r.rental_share_multi, 'rental_share_multi');
@@ -194,6 +203,19 @@
   const MAX_UNITS_PER_BUILDING = 1000;
   // The id of a scene row: a row without an id is "#<index>" (index in the scene's building list), the paperdolls convention (sceneKey in viz/packruntime.js). Same as scene_key() in Python.
   const sceneKey = (id, index) => (id === undefined || id === null ? '#' + index : String(id));
+
+  // Rules for an explicit building (SM-3), the same as validate_building_spec in entities.py: an object with a string id, a known tenure, 1..MAX_UNITS_PER_BUILDING
+  // dwellings, every dwelling area a finite number above 0, a rental draw that is null/absent or in [0, 1]. Throws an Error naming the building.
+  function validateBuilding(b, index) {
+    if (b === null || typeof b !== 'object' || Array.isArray(b)) throw new Error(`buildings[${index}] must be an object, got ${show(b)}`);
+    if (typeof b.id !== 'string') throw new Error(`buildings[${index}]: id must be a string, got ${show(b.id)}`);
+    const where = `buildings[${index}] (${show(b.id)})`;
+    if (typeof b.tenure !== 'string' || !TENURES.includes(b.tenure)) throw new Error(`${where}: tenure must be one of ${TENURES.join(', ')}, got ${show(b.tenure)}`);
+    if (!Array.isArray(b.unit_areas)) throw new Error(`${where}: unit_areas must be a list of areas, got ${show(b.unit_areas)}`);
+    if (b.unit_areas.length < 1 || b.unit_areas.length > MAX_UNITS_PER_BUILDING) throw new Error(`${where}: needs 1 to ${MAX_UNITS_PER_BUILDING} dwellings, got ${b.unit_areas.length}`);
+    b.unit_areas.forEach((a, k) => vPositive(a, `${where}: unit_areas[${k}]`));
+    if (b.rental_draw !== undefined && b.rental_draw !== null) vProb(b.rental_draw, `${where}: rental_draw`);
+  }
 
   // rows: {id, area (footprint m2), storeys, residential}. Returns {buildings, excluded: [[id, reason]], scene_ids, capped: [[id, dwellings before the cap]]}.
   function buildEntities(rows, rules, sceneSeed) {
@@ -299,22 +321,28 @@
     for (const k of Object.keys(over)) if (!(k in DEFAULTS) && k !== 'scene_rules') throw new Error(`unknown parameter '${k}'`);
     const p = Object.assign({}, DEFAULTS, over);
     p.scene_rules = sceneRules(over.scene_rules);
+    if (over.buildings !== undefined && !Array.isArray(over.buildings)) throw new Error(`buildings must be a list of buildings, got ${show(over.buildings)}`);
+    (over.buildings || []).forEach(validateBuilding);
     p.buildings = (over.buildings || []).map(b => makeSpec(b.id, b.tenure, b.unit_areas, b.rental_draw));
+    for (const n of ['keep_frames', 'refundable', 'means_test', 'peer_effect', 'shared_measure']) vBool(p[n], n);
+    vInt(p.seed, 'seed'); vInt(p.scene_seed, 'scene_seed');
+    for (const n of ['income_log_mean', 'energy_growth_flat', 'energy_growth_rising', 'energy_growth_shock']) vFinite(p[n], n);
+    for (const n of ['energy_growth_flat', 'energy_growth_rising', 'energy_growth_shock']) if (!(p[n] > -1)) throw new Error(`${n} must be above -1 (an annual growth of -100% or less has no monthly rate), got ${p[n]}`);
     for (const n of ['rental_share_single', 'rental_share_multi']) if (p[n] !== null) vProb(p[n], n);
     vIntPos(p.horizon_months, 'horizon_months'); vIntPos(p.n_buildings, 'n_buildings'); vIntPos(p.loan_term_months, 'loan_term_months');
     vNonneg(p.rebate_lag_months, 'rebate_lag_months');
-    if (!Number.isFinite(p.rebate_lag_months)) throw new Error(`rebate_lag_months must be finite, got ${p.rebate_lag_months}`);
     p.rebate_lag_months = pyRound(p.rebate_lag_months);      // whole months, half-to-even (as Python round)
     for (const n of ['deduction_rate', 'vendor_margin', 'public_overhead', 'public_capacity', 'consider_prob_base', 'neighbour_boost', 'savings_usable_share', 'tax_rate', 'shared_share', 'canvass_boost', 'free_time_spread']) vProb(p[n], n);
     for (const n of ['cost_per_m2', 'saving_per_m2_year', 'income_log_sd', 'savings_log_sd', 'years_in_dwelling_min', 'years_in_dwelling_max', 'canvass_saturation_hours', 'waking_hours_per_week']) vPositive(p[n], n);
     for (const n of ['loan_rate', 'loan_rate_risk_premium', 'canvass_target_hours', 'committed_hours_per_week', 'discount_rate', 'credit_income_threshold', 'credit_loan_to_income', 'tax_free_allowance', 'savings_months_of_income', 'savings_scale']) vNonneg(p[n], n);
+    vFinite(p.vote_threshold, 'vote_threshold');
     if (!(p.vote_threshold > 0 && p.vote_threshold <= 1)) throw new Error('vote_threshold must be in (0, 1]');
-    p.work_hours_by_quintile = Array.from(p.work_hours_by_quintile, Number);
-    if (p.work_hours_by_quintile.length !== 5 || p.work_hours_by_quintile.some(x => !(x >= 0))) throw new Error('work_hours_by_quintile must be 5 non-negative numbers');
+    if (!Array.isArray(p.work_hours_by_quintile) || p.work_hours_by_quintile.length !== 5) throw new Error(`work_hours_by_quintile must be 5 non-negative numbers, got ${show(p.work_hours_by_quintile)}`);
+    p.work_hours_by_quintile.forEach((x, k) => vNonneg(x, `work_hours_by_quintile[${k}]`));
+    p.work_hours_by_quintile = p.work_hours_by_quintile.slice();
     if (p.years_in_dwelling_max < p.years_in_dwelling_min) throw new Error('years_in_dwelling_max must be >= years_in_dwelling_min');
-    if (!DELIVERY_MODES.includes(p.delivery_mode)) throw new Error(`delivery_mode must be one of ${DELIVERY_MODES.join(', ')}, got '${p.delivery_mode}'`);
-    if (!CREDIT_ACCESS.includes(p.credit_access)) throw new Error(`credit_access must be one of ${CREDIT_ACCESS.join(', ')}, got '${p.credit_access}'`);
-    if (!ENERGY_SCENARIOS.includes(p.energy_scenario)) throw new Error(`energy_scenario must be one of ${ENERGY_SCENARIOS.join(', ')}, got '${p.energy_scenario}'`);
+    vEnum(p.delivery_mode, DELIVERY_MODES, 'delivery_mode'); vEnum(p.credit_access, CREDIT_ACCESS, 'credit_access'); vEnum(p.energy_scenario, ENERGY_SCENARIOS, 'energy_scenario');
+    vInt(p.means_test_max_quintile, 'means_test_max_quintile');
     if (!(p.means_test_max_quintile >= 1 && p.means_test_max_quintile <= 5)) throw new Error('means_test_max_quintile must be in 1..5');
     p.energy_growth_annual = p['energy_growth_' + p.energy_scenario];
     return Object.freeze(p);
@@ -728,7 +756,7 @@
   const api = {
     FRAME_SCHEMA_VERSION, BUILDING_STATES, SHARED_STATES, TENURES, DELIVERY_MODES, ENERGY_SCENARIOS, CREDIT_ACCESS, DEFAULTS,
     npv, financing, rebate, credit, ownership, delivery, sceneEntities,
-    Params, Simulation, runSimulation, toPackFrame, pyRound, pySum, NO_BUILDINGS_MESSAGE,
+    Params, validateBuilding, Simulation, runSimulation, toPackFrame, pyRound, pySum, NO_BUILDINGS_MESSAGE,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.GreatRetrofit = api;
