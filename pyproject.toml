@@ -19,6 +19,12 @@ dev = [
     "pytest-snapshot>=0.8",
     "matplotlib>=3.7",
 ]
+geodata = [          # scripts/geodata and tests/geodata (UrbIS heights, DTM); pip install -e ".[geodata]"
+    "shapely>=2.0",
+    "Pillow>=9",
+    "pyyaml>=6",
+    "jsonschema>=4",
+]
 plot = [
     "matplotlib>=3.7",
     "seaborn>=0.12",

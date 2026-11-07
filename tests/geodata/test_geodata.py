@@ -4,7 +4,7 @@ import math, sqlite3, struct, zlib
 import numpy as np
 import pytest
 
-shapely = pytest.importorskip("shapely")
+shapely = pytest.importorskip("shapely", reason="needs shapely: pip install -e '.[geodata]' (these tests are the only coverage of scripts/geodata)")
 from shapely.geometry import box
 
 import join_heights as jh

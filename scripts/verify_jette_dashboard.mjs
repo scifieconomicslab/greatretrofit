@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /* (dashboard check: charts, KPIs, compare, P6 channels, tenure preset.) Drives the built Jette page in headless Chromium over the DevTools protocol (no playwright needed; Node 22+ has WebSocket).
  *   node scripts/verify_jette_browser.mjs [build/jette_retrofit.html] [docs/verification/dashboard]
- * Env: CHROME=/path/to/chrome (default: the playwright cache), DPR (default 1).
+ * Env: CHROME=/path/to/chrome (default: the playwright cache), DPR (default 1), GPU=none|vulkan|egl (default none = software; see chrome_flags.mjs).
  * Writes screenshots to the output folder and prints a JSON summary (network requests, console, frame times, interaction checks).
- * Frame time = gap between requestAnimationFrame callbacks; software rendering in headless mode, so read it as a floor, not a GPU figure.
+ * Frame time = gap between requestAnimationFrame callbacks; with GPU=none this is software rendering, so read it as a floor; the summary's gpu field says what actually rendered.
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { chromeFlags, gpuInfo } from './chrome_flags.mjs';
 
 const page = path.resolve(process.argv[2] || 'build/jette_retrofit.html');
 const outDir = path.resolve(process.argv[3] || 'docs/verification/dashboard');
@@ -20,7 +21,7 @@ const chrome = process.env.CHROME || (() => {
   return path.join(base, d, 'chrome-linux64/chrome');
 })();
 const port = 9300 + Math.floor(Math.random() * 500);
-const proc = spawn(chrome, ['--headless=new', '--no-sandbox', '--disable-gpu', `--remote-debugging-port=${port}`, `--user-data-dir=${fs.mkdtempSync(path.join(os.tmpdir(), 'grchrome-'))}`, 'about:blank'], { stdio: 'ignore' });
+const proc = spawn(chrome, [...chromeFlags(), `--remote-debugging-port=${port}`, `--user-data-dir=${fs.mkdtempSync(path.join(os.tmpdir(), 'grchrome-'))}`, 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let targets;
 for (let i = 0; i < 50; i++) { try { targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json(); if (targets.length) break; } catch (e) {} await sleep(200); }
@@ -49,7 +50,7 @@ await ev(`window.__ft = ms => new Promise(res => { const d = []; let last = perf
   window.__btn = re => [...document.querySelectorAll('button')].find(b => re.test(b.textContent));
   window.__month = () => labPack.store.time().t;`);
 
-const R = { page: path.relative(process.cwd(), page), dpr, load_ms: loadMs };
+const R = { page: path.relative(process.cwd(), page), dpr, gpu_mode: process.env.GPU || 'none', gpu: await gpuInfo(port), load_ms: loadMs };
 await viewport(1440, 1500);
 const text = () => ev(`document.body.innerText`);
 R.binding = await ev(`({ bound: labPack.binding.bound, placed: labPack.binding.placed, warnings: labPack.binding.warnings })`);

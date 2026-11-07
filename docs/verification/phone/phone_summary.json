@@ -1,0 +1,266 @@
+{
+ "page": "build/jette_enriched.html",
+ "dpr": 2,
+ "sizes": {
+  "390x844": {
+   "first_screen": "390x844_1_first_screen.jpg",
+   "page": {
+    "scrollW": 390,
+    "clientW": 390,
+    "scrollH": 3599,
+    "innerH": 844,
+    "overflow_x": false,
+    "wide_elements": []
+   },
+   "map": {
+    "x": 0,
+    "y": 139,
+    "w": 390,
+    "h": 421,
+    "share_of_viewport_height": 0.5
+   },
+   "small_targets": {
+    "interactive_total": 49,
+    "smaller_than_40px": 22,
+    "by_size": {
+     "input[range] 291x32": 10,
+     "input[checkbox] 22x22 \"on\"": 4,
+     "button[button] 35x44 \"A\"": 1,
+     "button[button] 35x44 \"B\"": 1,
+     "input[range] 362x32": 1,
+     "button[button] 56x36 \"q1\"": 1,
+     "button[button] 56x36 \"q2\"": 1,
+     "button[button] 56x36 \"q3\"": 1,
+     "button[button] 56x36 \"q4\"": 1,
+     "button[button] 56x36 \"q5\"": 1
+    },
+    "examples": [
+     {
+      "el": "input[range]",
+      "text": "0.3",
+      "w": 291,
+      "h": 32
+     },
+     {
+      "el": "input[checkbox]",
+      "text": "on",
+      "w": 22,
+      "h": 22
+     },
+     {
+      "el": "input[range]",
+      "text": "12",
+      "w": 291,
+      "h": 32
+     },
+     {
+      "el": "input[range]",
+      "text": "0.04",
+      "w": 291,
+      "h": 32
+     },
+     {
+      "el": "input[range]",
+      "text": "0.15",
+      "w": 291,
+      "h": 32
+     },
+     {
+      "el": "input[range]",
+      "text": "0.1",
+      "w": 291,
+      "h": 32
+     },
+     {
+      "el": "input[range]",
+      "text": "0.05",
+      "w": 291,
+      "h": 32
+     },
+     {
+      "el": "input[checkbox]",
+      "text": "on",
+      "w": 22,
+      "h": 22
+     },
+     {
+      "el": "input[checkbox]",
+      "text": "on",
+      "w": 22,
+      "h": 22
+     },
+     {
+      "el": "input[checkbox]",
+      "text": "on",
+      "w": 22,
+      "h": 22
+     },
+     {
+      "el": "input[range]",
+      "text": "0.67",
+      "w": 291,
+      "h": 32
+     },
+     {
+      "el": "input[range]",
+      "text": "2",
+      "w": 291,
+      "h": 32
+     }
+    ]
+   },
+   "controls_found": true,
+   "charts_found": true,
+   "compare_found": true,
+   "tap": {
+    "x": 223,
+    "y": 345,
+    "selection": "{\"entity\":\"building\",\"id\":6502}"
+   },
+   "inspector": {
+    "found": true,
+    "display": "block",
+    "docked": true,
+    "rect": [
+     8,
+     358,
+     374,
+     194
+    ],
+    "scrollY": 0,
+    "visible_share_in_viewport": 1,
+    "text": "Building w224362752\n×\nOSM id\nw224362752\nFootprint\n83 m²\nStoreys\n4\nResidential class\nprobable (a guess: plain building, 30 m² or more)\nstate\nNot retrofitted\ntenure\nCondo\nadopted_share\n0\nunits\n3\nDwellin"
+   }
+  },
+  "768x1024": {
+   "first_screen": "768x1024_1_first_screen.jpg",
+   "page": {
+    "scrollW": 768,
+    "clientW": 768,
+    "scrollH": 2711,
+    "innerH": 1024,
+    "overflow_x": false,
+    "wide_elements": []
+   },
+   "map": {
+    "x": 0,
+    "y": 90,
+    "w": 768,
+    "h": 511,
+    "share_of_viewport_height": 0.5
+   },
+   "small_targets": {
+    "interactive_total": 49,
+    "smaller_than_40px": 22,
+    "by_size": {
+     "input[range] 669x32": 10,
+     "input[checkbox] 22x22 \"on\"": 4,
+     "button[button] 35x44 \"A\"": 1,
+     "button[button] 35x44 \"B\"": 1,
+     "input[range] 740x32": 1,
+     "button[button] 56x36 \"q1\"": 1,
+     "button[button] 56x36 \"q2\"": 1,
+     "button[button] 56x36 \"q3\"": 1,
+     "button[button] 56x36 \"q4\"": 1,
+     "button[button] 56x36 \"q5\"": 1
+    },
+    "examples": [
+     {
+      "el": "input[range]",
+      "text": "0.3",
+      "w": 669,
+      "h": 32
+     },
+     {
+      "el": "input[checkbox]",
+      "text": "on",
+      "w": 22,
+      "h": 22
+     },
+     {
+      "el": "input[range]",
+      "text": "12",
+      "w": 669,
+      "h": 32
+     },
+     {
+      "el": "input[range]",
+      "text": "0.04",
+      "w": 669,
+      "h": 32
+     },
+     {
+      "el": "input[range]",
+      "text": "0.15",
+      "w": 669,
+      "h": 32
+     },
+     {
+      "el": "input[range]",
+      "text": "0.1",
+      "w": 669,
+      "h": 32
+     },
+     {
+      "el": "input[range]",
+      "text": "0.05",
+      "w": 669,
+      "h": 32
+     },
+     {
+      "el": "input[checkbox]",
+      "text": "on",
+      "w": 22,
+      "h": 22
+     },
+     {
+      "el": "input[checkbox]",
+      "text": "on",
+      "w": 22,
+      "h": 22
+     },
+     {
+      "el": "input[checkbox]",
+      "text": "on",
+      "w": 22,
+      "h": 22
+     },
+     {
+      "el": "input[range]",
+      "text": "0.67",
+      "w": 669,
+      "h": 32
+     },
+     {
+      "el": "input[range]",
+      "text": "2",
+      "w": 669,
+      "h": 32
+     }
+    ]
+   },
+   "controls_found": true,
+   "charts_found": true,
+   "compare_found": true,
+   "tap": {
+    "x": 371,
+    "y": 385,
+    "selection": "{\"entity\":\"building\",\"id\":4659}"
+   },
+   "inspector": {
+    "found": true,
+    "display": "block",
+    "docked": true,
+    "rect": [
+     458,
+     146,
+     300,
+     427
+    ],
+    "scrollY": 0,
+    "visible_share_in_viewport": 1,
+    "text": "Building w224086312\n×\nOSM id\nw224086312\nFootprint\n58 m²\nStoreys\n3\nResidential class\nprobable (a guess: plain building, 30 m² or more)\nstate\nNot retrofitted\ntenure\nCondo\nadopted_share\n0\nunits\n2\nDwellin"
+   }
+  }
+ }
+}

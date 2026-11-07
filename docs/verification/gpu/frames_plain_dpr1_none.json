@@ -1,0 +1,94 @@
+{
+ "page": "build/jette_plain.html",
+ "dpr": 1,
+ "gpu_mode": "none",
+ "gpu": {
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver-5.0.0)",
+  "compositing": "disabled_software",
+  "rasterization": "disabled_software",
+  "webgl": "unavailable_software",
+  "devices": [
+   "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver-5.0.0)"
+  ]
+ },
+ "canvas_css": [
+  763,
+  437
+ ],
+ "canvas_px": [
+  763,
+  437
+ ],
+ "buildings": 9214,
+ "load_ms": 3501,
+ "far": {
+  "idle": {
+   "frames": 7,
+   "fps": 3.1,
+   "mean_ms": 321.2,
+   "p50_ms": 383.3,
+   "p95_ms": 383.4,
+   "max_ms": 383.4
+  },
+  "playing": {
+   "frames": 91,
+   "fps": 22.5,
+   "mean_ms": 44.5,
+   "p50_ms": 50,
+   "p95_ms": 50.1,
+   "max_ms": 66.6
+  },
+  "months_played": 97,
+  "slider_drag": {
+   "frames": 122,
+   "fps": 40.3,
+   "mean_ms": 24.8,
+   "p50_ms": 16.7,
+   "p95_ms": 50,
+   "max_ms": 50
+  },
+  "wheel_zoom": {
+   "frames": 175,
+   "fps": 58,
+   "mean_ms": 17.2,
+   "p50_ms": 16.7,
+   "p95_ms": 16.8,
+   "max_ms": 33.4
+  }
+ },
+ "near": {
+  "idle": {
+   "frames": 121,
+   "fps": 60.5,
+   "mean_ms": 16.5,
+   "p50_ms": 16.7,
+   "p95_ms": 16.8,
+   "max_ms": 16.8
+  },
+  "playing": {
+   "frames": 240,
+   "fps": 60,
+   "mean_ms": 16.7,
+   "p50_ms": 16.7,
+   "p95_ms": 16.8,
+   "max_ms": 33.4
+  },
+  "months_played": 97,
+  "slider_drag": {
+   "frames": 181,
+   "fps": 60.3,
+   "mean_ms": 16.6,
+   "p50_ms": 16.7,
+   "p95_ms": 16.7,
+   "max_ms": 16.8
+  },
+  "wheel_zoom": {
+   "frames": 181,
+   "fps": 60.2,
+   "mean_ms": 16.6,
+   "p50_ms": 16.7,
+   "p95_ms": 16.7,
+   "max_ms": 16.8
+  }
+ }
+}

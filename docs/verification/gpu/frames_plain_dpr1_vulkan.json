@@ -1,0 +1,95 @@
+{
+ "page": "build/jette_plain.html",
+ "dpr": 1,
+ "gpu_mode": "vulkan",
+ "gpu": {
+  "renderer": "ANGLE (NVIDIA, Vulkan 1.4.312 (NVIDIA NVIDIA GeForce RTX 4080 SUPER (0x00002702)), NVIDIA-580.178.4.0)",
+  "compositing": "disabled_software",
+  "rasterization": "enabled_force",
+  "webgl": "enabled_readback",
+  "devices": [
+   "",
+   ""
+  ]
+ },
+ "canvas_css": [
+  763,
+  437
+ ],
+ "canvas_px": [
+  763,
+  437
+ ],
+ "buildings": 9214,
+ "load_ms": 4215,
+ "far": {
+  "idle": {
+   "frames": 41,
+   "fps": 20.5,
+   "mean_ms": 48.8,
+   "p50_ms": 16.7,
+   "p95_ms": 399.8,
+   "max_ms": 400.1
+  },
+  "playing": {
+   "frames": 88,
+   "fps": 21.8,
+   "mean_ms": 45.9,
+   "p50_ms": 50,
+   "p95_ms": 50.1,
+   "max_ms": 66.6
+  },
+  "months_played": 97,
+  "slider_drag": {
+   "frames": 121,
+   "fps": 40,
+   "mean_ms": 25,
+   "p50_ms": 16.7,
+   "p95_ms": 50,
+   "max_ms": 50.1
+  },
+  "wheel_zoom": {
+   "frames": 178,
+   "fps": 59.3,
+   "mean_ms": 16.9,
+   "p50_ms": 16.7,
+   "p95_ms": 16.8,
+   "max_ms": 33.4
+  }
+ },
+ "near": {
+  "idle": {
+   "frames": 121,
+   "fps": 60.3,
+   "mean_ms": 16.6,
+   "p50_ms": 16.7,
+   "p95_ms": 16.7,
+   "max_ms": 16.8
+  },
+  "playing": {
+   "frames": 241,
+   "fps": 60.2,
+   "mean_ms": 16.6,
+   "p50_ms": 16.7,
+   "p95_ms": 16.7,
+   "max_ms": 16.8
+  },
+  "months_played": 96,
+  "slider_drag": {
+   "frames": 181,
+   "fps": 60.3,
+   "mean_ms": 16.6,
+   "p50_ms": 16.7,
+   "p95_ms": 16.7,
+   "max_ms": 16.8
+  },
+  "wheel_zoom": {
+   "frames": 181,
+   "fps": 60.3,
+   "mean_ms": 16.6,
+   "p50_ms": 16.7,
+   "p95_ms": 16.7,
+   "max_ms": 16.8
+  }
+ }
+}
