@@ -7,7 +7,7 @@ description: >
   modes (tax rebate with a market vendor, pay the vendor direct, public retrofit service). ECONOMIC, NOT SOCIAL: no ideology premium, no solidarity lever.
   EVERY NUMBER IS A PLACEHOLDER awaiting the economists (v3/docs/placeholders.md); nothing here is a finding.
 
-runtime: {type: js, entry: runtime.js, seed: 1, on_params: rerun}
+runtime: {type: js, entry: runtime.js, files: [prng.js, hook.js, runtime.js, bind.js], seed: 1, on_params: rerun}
 time: {unit: month, steps: 180, speeds: [6, 24, 72], speed: 24}
 
 params:

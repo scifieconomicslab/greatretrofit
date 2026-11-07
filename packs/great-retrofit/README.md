@@ -8,7 +8,7 @@ A paperdolls model pack for the v3 retrofit model: sliders for the rebate, credi
 
 | Piece | State |
 |---|---|
-| `runtime.js` | Complete JavaScript port of v3 (npv, financing, rebate, credit, ownership and delivery strategies, scene-entities, the monthly loop). All randomness goes through `v3/js/prng.js`. Frames follow [v3/docs/frame-schema.md](../../v3/docs/frame-schema.md). Registers as `great-retrofit` when `PaperDolls` is present. |
+| `runtime.js` | Complete JavaScript port of v3 (npv, financing, rebate, credit, ownership and delivery strategies, scene-entities, the monthly loop). All randomness goes through `prng.js` (a pack-local copy of `v3/js/prng.js`). Frames follow [v3/docs/frame-schema.md](../../v3/docs/frame-schema.md). Registers as `great-retrofit` when `PaperDolls` is present. |
 | Parity | `tests/cases.json` holds 10 parameter sets (every delivery mode, every credit setting, refundable, means test, explicit buildings). Python writes golden trajectories to `tests/golden/`; Python and JS must both reproduce them (exact for integers, strings and states; 1e-9 for floats). |
 | `pack.yaml` | Valid against the paperdolls validator (`paperdolls pack check`): params in Fiscal / Credit / Delivery / Energy groups, three presets, entity fields, wall and overlay mappings, series, layout, banner. The runtime also passes `PackRuntime.checkRuntime` (deterministic, frames match the manifest) for the defaults and each preset. |
 | `bind.js` | `bindScene(scene, {sceneSeed, rules})` turns scene buildings into model buildings and units. Takes the older scene format (`id, footprint, levels`, area computed from the footprint, residential assumed) and the newer fields (`area, height, residential, neighbours`) when they exist. Returns a report listing exclusions and every assumption made. |
@@ -26,12 +26,11 @@ A paperdolls model pack for the v3 retrofit model: sliders for the rebate, credi
 Needs the paperdolls branch `claude/model-packs-6a7453` (pack shell P1) or later.
 
 ```bash
-node packs/great-retrofit/tools/bundle.js          # writes dist/ (prng + runtime + bind in one entry; not committed)
-cd <paperdolls checkout> && python3 -m paperdolls pack check <this repo>/packs/great-retrofit/dist
-python3 -m paperdolls pack build <this repo>/packs/great-retrofit/dist --out retrofit.html [--scene jette.json]
+cd <paperdolls checkout> && python3 -m paperdolls pack check <this repo>/packs/great-retrofit
+python3 -m paperdolls pack build <this repo>/packs/great-retrofit --out retrofit.html [--scene jette.json]
 ```
 
-The bundle is needed because the paperdolls build inlines only `runtime.entry`. Open `retrofit.html` offline.
+No bundling step: `runtime.files` in `pack.yaml` lists `prng.js`, `hook.js`, `runtime.js`, `bind.js` in load order and the build inlines them. `prng.js` is a copy of `v3/js/prng.js` (a pack folder must be self-contained); `tests/test_prng_copy.py` fails if the two differ and runs the shared PRNG vectors against the copy. After changing the PRNG: `cp v3/js/prng.js packs/great-retrofit/prng.js`. Open `retrofit.html` offline.
 
 ## Tests
 

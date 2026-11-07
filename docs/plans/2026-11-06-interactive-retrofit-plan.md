@@ -249,6 +249,7 @@ Grouped by need; each has a test in `viz/test_*.js` or `tests/`.
 
 **Output / distribution**
 - `paperdolls pack build packs/great-retrofit --scene jette.json --out jette_retrofit.html`: single self-contained offline HTML (as `viewer_built.html` is today).
+  - Status (2026-11-07): works on the pack folder directly. `pack.yaml` lists `runtime.files: [prng.js, hook.js, runtime.js, bind.js]`; `prng.js` is a pack-local copy of `v3/js/prng.js`, held identical by `packs/great-retrofit/tests/test_prng_copy.py`. The earlier `tools/bundle.js` / `dist/` step is gone.
 - `paperdolls pack dev`: local dev server with hot reload of manifest and runtime, for faster iteration with the economists.
 - `paperdolls pack check`: manifest validation (unknown params, missing scales, unlabeled legend entries), runtime determinism, JS-vs-Python parity.
 

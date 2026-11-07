@@ -13,7 +13,7 @@ g.globalThis = g; vm.createContext(g);
 const load = f => vm.runInContext(fs.readFileSync(f, 'utf8'), g, { filename: f });
 load(path.join(pdDir, 'viz', 'packvalidate.js'));
 load(path.join(pdDir, 'viz', 'packruntime.js'));
-load(path.join(pack, '..', '..', 'v3', 'js', 'prng.js'));
+load(path.join(pack, 'prng.js'));
 load(path.join(pack, 'runtime.js'));
 
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));

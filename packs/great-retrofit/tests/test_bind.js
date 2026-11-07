@@ -90,10 +90,10 @@ test('paperdolls ingest classes: residential, probable (a guess, counted) and ot
 test('hook.js gives the registered runtime a bindScene in the shape paperdolls expects, and init reads the bound specs', () => {
   const reg = {};
   const g = { PaperDolls: { registerRuntime(id, impl) { reg[id] = impl; } } };
-  // load order as in the bundle: hook, runtime, bind (same global object)
+  // load order as in runtime.files: hook, runtime, bind (same global object)
   const fs = require('fs'), path = require('path'), vm = require('vm');
   const ctx = vm.createContext({ console }); ctx.globalThis = ctx; ctx.PaperDolls = g.PaperDolls;
-  for (const f of ['../../v3/js/prng.js', 'hook.js', 'runtime.js', 'bind.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), ctx, { filename: f });
+  for (const f of ['prng.js', 'hook.js', 'runtime.js', 'bind.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), ctx, { filename: f });
   const impl = reg['great-retrofit'];
   assert.strictEqual(typeof impl.bindScene, 'function');
   const res = impl.bindScene(old);

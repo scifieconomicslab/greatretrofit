@@ -104,3 +104,5 @@ Pack rebuilt against paperdolls `main` at f23f9d4 (P5 charts/KPIs/compare, P6 ch
 - New run parameters `rental_share_single`, `rental_share_multi` (placeholders, defaults equal to the scene rules, so nothing changes unless they move), in `v3/docs/placeholders.md`. Two new parity cases (`rental_share_override_s18`, `rental_share_zero_s19`); golden files regenerated, and a check that no previous value in any golden changed.
 - No-data test (`tests/test_nodata.js`, `.py`): `null` in v3 frames and `NaN` in pack frames only in the five series the schema marks nullable, and equal to each other; entity arrays never hold NaN.
 - Not run: DPR 2, the Overpass fetch branch of the build script, touch input, a GPU-backed browser.
+
+> Update 2026-11-07: bug 3 and item H are closed. `pack check` and `pack build` work on `packs/great-retrofit` directly (`runtime.files` in `pack.yaml`, pack-local `prng.js`); `tools/bundle.js` and `dist/` are removed. See `merged-build-gaps.md`.

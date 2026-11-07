@@ -2,7 +2,7 @@
  *
  * Same module split as Python, as sections of one file so a pack build can inline it:
  *   npv, financing, rebate, credit, ownership, delivery, sceneEntities, Params, Simulation.
- * ALL randomness goes through v3/js/prng.js (mulberry32 and hashUniform). Never Math.random.
+ * ALL randomness goes through prng.js (a copy of v3/js/prng.js, kept identical by a test) (mulberry32 and hashUniform). Never Math.random.
  * Names and the frame schema are the Python ones (snake_case, see v3/docs/frame-schema.md).
  *
  * EVERY default in DEFAULTS is a PLACEHOLDER awaiting the economists (v3/docs/placeholders.md).
@@ -15,8 +15,8 @@
 (function (root) {
   'use strict';
 
-  const PRNG = root.RetrofitPRNG || (typeof require === 'function' ? require('../../v3/js/prng.js') : null);
-  if (!PRNG) throw new Error('great-retrofit runtime: RetrofitPRNG (v3/js/prng.js) must be loaded first');
+  const PRNG = root.RetrofitPRNG || (typeof require === 'function' ? require('./prng.js') : null);
+  if (!PRNG) throw new Error('great-retrofit runtime: RetrofitPRNG (prng.js) must be loaded first');
   const { Rng, hashUniform } = PRNG;
 
   const FRAME_SCHEMA_VERSION = 1;

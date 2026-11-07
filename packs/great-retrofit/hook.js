@@ -1,5 +1,5 @@
 /* hook.js: connects bind.js to the paperdolls runtime contract (docs/pack-spec.md, "Binding to the scene").
- * Loaded BEFORE runtime.js in the bundle. It wraps PaperDolls.registerRuntime for the id 'great-retrofit' so that the registered runtime
+ * Loaded BEFORE runtime.js in the page (runtime.files order). It wraps PaperDolls.registerRuntime for the id 'great-retrofit' so that the registered runtime
  *  - gets a bindScene(scene) hook: { entities: {building: {count, attrs: {specs}}}, sceneIndex: {building: [scene id, ...]} }, made by bind.js
  *  - has init() read the bound specs from entities.building.attrs.specs (the shell hands attrs through) and pass them on as entities.building.specs.
  * runtime.js itself is not touched; it already takes entities.building.specs.
