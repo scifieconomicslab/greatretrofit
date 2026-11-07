@@ -1,30 +1,32 @@
 # State machines of the v3 model and its JavaScript runtime
 
 Scope: the Python reference `v3/src/retrofit_v3/` and the browser runtime `packs/great-retrofit/{runtime,hook,bind}.js`, with the handle lifecycle the paperdolls shell drives through `viz/packruntime.js` (read-only, `/data/ScifiEconomicsLab/scifirender/paperdolls`).
-Analysis and evidence only: no model or runtime code was changed. Every economic number in the model is a placeholder; the figures quoted below show that two code paths disagree, they are not results.
+The analysis was first written as evidence only (commit `e01212f` and its descendants up to `987ee46`). The findings below marked **FIXED** were fixed on branch `claude/fix-model-385572` (commits listed in section 0); the text of each affected section describes the code after the fix, and says what it was where that matters. Every economic number in the model is a placeholder; the figures quoted below show that two code paths disagree or how often a path is taken, they are not results.
 
-Status words: **CONFIRMED** = deterministic repro that was run (command and observed output pasted); **SUSPECTED** = reasoned, with what blocked a repro; **REFUTED** = code prevents it (line given).
-Line numbers are for the commit this branch starts from (`e01212f`).
+Status words: **FIXED** = corrected on the fix branch, with the commit and the regression test (the quoted repro output is from before the fix); **CONFIRMED** = deterministic repro that was run (command and observed output pasted); **SUSPECTED** = reasoned, with what blocked a repro; **REFUTED** = code prevents it (line given).
+Line numbers and quoted outputs are for the analysis commit (`e01212f`); the fixes moved code, so look the names up rather than the lines. Quoted outputs of repros marked FIXED are what the code printed before the fix.
 
 ## 0. Summary: confirmed defects, highest impact first
 
-| Rank | ID | Defect | Impact | Likelihood | Repro |
+| Rank | ID | Defect | Impact | Likelihood | Status and regression test |
 |---|---|---|---|---|---|
-| 1 | SM-1 | `rebate_lag_months = 0` (the slider's minimum, in the manifest range 0..24) loses every rebate: it is queued under the month that has just been processed. "Cumulative public cost" omits all rebates, and household net cash omits them too. Python and JS agree, so no test sees it. A fractional lag (Python API) is lost the same way. | High: the headline public-cost series is wrong for the rebate mode, with no error | High: "no lag" is the natural thing to try | `repro/test_rebate_lag.py`, `repro/js/lag_zero.js` |
-| 2 | SM-4 | The means-test help text in `pack.yaml` says the test "Does not apply to the rebate"; the model (Python and JS) applies it to the rebate: an ineligible household buys on the market with no rebate. | Medium: wrong user-facing statement about a lever | Certain (every user who reads the tooltip) | `repro/test_means_test_help_text.py` |
-| 3 | SM-7 | A scene whose buildings are all non-residential binds to 0 model buildings, but `paramsFromPack` falls back to the 200 synthetic ones; the first frame then has 200 entries for a declared count of 0 and `start()` throws (with validation off, the wrong-size frame goes through). | Medium: red banner, no run | Low for Jette, medium for other scenes or a filtered scene | `repro/js/zero_residential_scene.js` |
-| 4 | SM-8 | A scene building without `id` (ids are optional in a scene) is addressed by bind.js as `"undefined"` and by paperdolls as `"#<index>"`: it is modelled and counted in every series, and never drawn. | Medium: the map and the series disagree, with only a console-level warning | Low for Jette (OSM ids), medium for other scenes | `repro/js/idless_buildings.js` |
-| 5 | SM-9 | `toPackFrame` stores `units` and `units_done` in `Int16Array`; a building of more than 32767 dwellings (huge footprint times levels from bad geometry; bindScene has no upper bound) wraps to a negative count. | Medium: negative units in the segments channel | Low | `repro/js/int16_overflow.js` |
-| 6 | SM-2 | Python `Params` accepts NaN and +/-inf (`value <= 0`, `value < 0` are False for NaN); some reach the frames as inf. JS rejects NaN. Not reachable from the sliders (finite ranges). | Low via the shell, medium via the API or a future manifest entry | Low | `repro/test_params_nonfinite.py` |
-| 7 | SM-3 | Explicit buildings are not validated: zero units or zero area gives a bare `ZeroDivisionError`, an unknown tenure a `KeyError`, negative or NaN areas run silently. Not reachable through bind.js. | Low | Low | `repro/test_degenerate_buildings.py` |
-| 8 | SM-10 | JS `Params()` coerces: `null`, numeric strings and `[]` are accepted where Python raises `TypeError`. | Low | Low | `repro/js/params_coercion.js` |
-| 9 | SM-13 | (paperdolls, not ours, listed for the hand-off) `PackRuntime.step(0)` after `start()` throws "t is N, expected N+1", although the runtime interface says `step(h, 0)` returns the current frame. The runtime itself is right. | Low | Low | `repro/js/lifecycle_surface.js` |
+| 1 | SM-1 | `rebate_lag_months = 0` (the slider's minimum, in the manifest range 0..24) loses every rebate: it is queued under the month that has just been processed. "Cumulative public cost" omits all rebates, and household net cash omits them too. Python and JS agree, so no test sees it. A fractional lag (Python API) is lost the same way. | High: the headline public-cost series is wrong for the rebate mode, with no error | High: "no lag" is the natural thing to try | **FIXED** `d35c485` (issue #1): lag 0 pays in the month of the retrofit; fractional lags round half to even. `tests/model/test_rebate_lag.py`, `rebate_lag_sweep.js` |
+| 2 | SM-4 | The means-test help text in `pack.yaml` says the test "Does not apply to the rebate"; the model (Python and JS) applies it to the rebate: an ineligible household buys on the market with no rebate. | Medium: wrong user-facing statement about a lever | Certain (every user who reads the tooltip) | **TEXT FIXED** `36e744e` (issue #2): pack text, `params.py` and `placeholders.md` now say the means test also restricts the rebate; behaviour unchanged and pinned in `tests/model/test_means_test_scope.py`. **Open design decision: should it?** |
+| 3 | SM-7 | A scene whose buildings are all non-residential binds to 0 model buildings, but `paramsFromPack` falls back to the 200 synthetic ones; the first frame then has 200 entries for a declared count of 0 and `start()` throws (with validation off, the wrong-size frame goes through). | Medium: red banner, no run | Low for Jette, medium for other scenes or a filtered scene | **FIXED** `fce5466` (issue #3): a bound scene with no residential building stops with a clear message and never falls back to synthetic buildings. `tests/model/scene_contract.js` |
+| 4 | SM-8 | A scene building without `id` (ids are optional in a scene) is addressed by bind.js as `"undefined"` and by paperdolls as `"#<index>"`: it is modelled and counted in every series, and never drawn. | Medium: the map and the series disagree, with only a console-level warning | Low for Jette (OSM ids), medium for other scenes | **FIXED** `fce5466`: id-less buildings are `"#<index>"` in both languages. `tests/model/scene_contract.js`, `test_scene_contract.py`, golden `scene_tables.json` |
+| 5 | SM-9 | `toPackFrame` stores `units` and `units_done` in `Int16Array`; a building of more than 32767 dwellings (huge footprint times levels from bad geometry; bindScene has no upper bound) wraps to a negative count. | Medium: negative units in the segments channel | Low | **FIXED** `fce5466`: `Int32Array` plus a cap of 1000 dwellings per scene building with a report and a warning. same tests |
+| 6 | SM-2 | Python `Params` accepts NaN and +/-inf (`value <= 0`, `value < 0` are False for NaN); some reach the frames as inf. JS rejects NaN. Not reachable from the sliders (finite ranges). | Low via the shell, medium via the API or a future manifest entry | Low | **FIXED** `a3aa37f` (issue #4): finite numbers only, in both languages. `tests/model/test_validation_vectors.py`, `test_params_nonfinite.py` |
+| 7 | SM-3 | Explicit buildings are not validated: zero units or zero area gives a bare `ZeroDivisionError`, an unknown tenure a `KeyError`, negative or NaN areas run silently. Not reachable through bind.js. | Low | Low | **FIXED** `a3aa37f`: explicit buildings validated, error names the building. `tests/model/test_degenerate_buildings.py` |
+| 8 | SM-10 | JS `Params()` coerces: `null`, numeric strings and `[]` are accepted where Python raises `TypeError`. | Low | Low | **FIXED** `a3aa37f`: no coercion in JS `Params`. `tests/model/params_coercion.js` |
+| 9 | SM-13 | (paperdolls, not ours, listed for the hand-off) `PackRuntime.step(0)` after `start()` throws "t is N, expected N+1", although the runtime interface says `step(h, 0)` returns the current frame. The runtime itself is right. | Low | Low | Not ours: filed against paperdolls. `repro/js/lifecycle_surface.js` documents it |
 
-Behaviours pinned as characterisation tests (they pass today and are questions about the design, not bugs in the code as written): SM-5 votes that reach the threshold but never pass because one owner cannot pay (108 buildings in 200 sampled 180-month runs), SM-6 a household charged for the shared part after its own horizon (1 case in 200), SM-15 empty quintiles drawn as 0 rather than no-data. SM-11, SM-12, SM-14 are lifecycle-surface observations (section 13).
+Behaviours pinned as characterisation tests (they pass today and are questions about the design, not bugs in the code as written; options and numbers: `docs/design-questions.md`, issue #5): SM-5 votes that reach the threshold but never pass because one owner cannot pay (108 buildings in 200 sampled 180-month runs), SM-6 a household charged for the shared part after its own horizon (1 case in 200), SM-15 empty quintiles drawn as 0 rather than no-data. SM-11, SM-12, SM-14 are lifecycle-surface observations (section 13).
 
 Everything else asked about was attacked and held (section 14: REFUTED list). Python and JS never diverged on 8,000 random cases frame by frame (section 15).
 
-Proposed issue grouping (not filed): **A** rebate queue timing (SM-1); **B** pack text vs behaviour (SM-4); **C** scene/runtime contract (SM-7, SM-8, SM-9); **D** input validation (SM-2, SM-3, SM-10); **E** design questions (SM-5, SM-6, SM-15); **F** lifecycle contract (SM-11, SM-12, SM-13).
+Issue grouping (filed as GitHub issues): **#1** rebate queue timing (SM-1), fixed; **#2** pack text vs behaviour (SM-4), text fixed, behaviour decision open; **#3** scene/runtime contract (SM-7, SM-8, SM-9), fixed; **#4** input validation (SM-2, SM-3, SM-10), fixed; **#5** design questions (SM-5, SM-6, SM-15), documented in `docs/design-questions.md`, open; lifecycle contract (SM-11, SM-12, SM-13) is paperdolls', not ours.
+
+Fix commits on `claude/fix-model-385572`: `d35c485` (SM-1), `36e744e` (SM-4 text), `fce5466` (SM-7, SM-8, SM-9), `a3aa37f` (SM-2, SM-3, SM-10), `b2e6b59` (design questions). The strict-xfail repros of the fixed findings were converted into regression tests under `tests/model/`, each shown to fail on `987ee46` (commit messages).
 
 ## 1. Evidence and how to run it
 
@@ -33,7 +35,8 @@ Proposed issue grouping (not filed): **A** rebate queue timing (SM-1); **B** pac
 | Fuzz: invariants on every step, Python | `tests/fuzz/test_fuzz_python.py`, `fuzz_lib.py` | `PYTHONPATH=v3/src .venv/bin/python -m pytest tests/fuzz -q` (about 9 s) |
 | Fuzz: Python vs JS frame by frame, adapter typed frames | `tests/fuzz/test_fuzz_parity.py`, `parity_lib.py`, `run_js_cases.js`, `run_js_params.js` | same |
 | Fuzz: handle lifecycle programs, emulated snapshot | `tests/fuzz/test_fuzz_js_lifecycle.py`, `lifecycle_fuzz.js` | same |
-| Repros | `docs/state-machines/repro/` | `PYTHONPATH=v3/src .venv/bin/python -m pytest docs/state-machines/repro -q -rx` |
+| Regression tests for the fixed findings | `tests/model/` | `PYTHONPATH=v3/src .venv/bin/python -m pytest tests/model -q` (about 2 s; includes the node scripts) |
+| Characterisation of what is still open (SM-5, SM-6, SM-15) and the lifecycle script | `docs/state-machines/repro/` | `PYTHONPATH=v3/src .venv/bin/python -m pytest docs/state-machines/repro -q -s` |
 
 The fuzz tests are bounded (`FUZZ_BUDGET_S`=20 s, `FUZZ_N`=150 cases per kind, `FUZZ_PARITY_N`=120, `FUZZ_LIFECYCLE_N`=12) and deterministic; `FUZZ_SEED` shifts the case seeds. A case is `fuzz_lib.case_for(kind, seed)` with `kind` = `manifest` (parameters inside the pack.yaml ranges, lag >= 1) or `edge` (additionally: vote threshold 0.01 and 1, shared share 0 and 1, consideration probability 0 and 1, discount rate 0 and 1, tax rate 0 and 1, savings scale 0 and 50, loan term 1 and 1200 months, cost and saving per m2 at 1e-6 and 1e5, credit multiple 0 and 100, seeds above 2^31, all-rental scenes, single building, one-dwelling buildings, 15 to 40 dwelling condos). Both kinds mix `public_capacity` 0, `credit_access: none` with passthrough, `vote_threshold` 0.5 and 1.0.
 
@@ -42,7 +45,7 @@ Runs made while writing this (all clean, none needs a seed to cite):
 * Python invariants (frame, white-box state, event log; section 12): seeds 0..1499 and 10000..12499 of both kinds, 8000 runs, 0 violations. The generators avoid the regions of SM-1 to SM-3 on purpose; those have their own repros.
 * Python vs JS: seeds 0..1499 and 10000..12499 of both kinds, 8000 cases, 0 differences in frames, events or votes (tolerance 1e-9 relative), and 0 differences between the adapter's typed frames and a mapping re-derived independently from the Python frame.
 * Lifecycle: 40 random programs, 0 problems.
-* Existing suite: `PYTHONPATH=v3/src .venv/bin/python -m pytest v3 packs tests -q` gives `154 passed, 1 skipped`.
+* Existing suite at the analysis commit: `PYTHONPATH=v3/src .venv/bin/python -m pytest v3 packs tests -q` gave `154 passed, 1 skipped`. After the fixes: `PYTHONPATH=v3/src .venv/bin/python -m pytest v3 packs tests docs/state-machines/repro -q` gives `619 passed, 1 skipped` (the 8,000-case parity fuzz inputs were not rerun in full; the bounded fuzz tests are in that run and green).
 
 Note on the existing capacity test: `v3/test_v3/test_invariants.py::test_public_service_respects_capacity` allows a slack of one job per month and in total. The fuzz check recomputes the exact slot count `int(quota + carry)` month by month (`fuzz_lib.event_problems`) and holds with no slack.
 
@@ -60,9 +63,9 @@ State: `t` (`self.t`, advanced at `model.py:412`), plus everything in M2 to M8. 
 | 5 votes | 385-411 | `_yes_share`, `_evaluate` for every owner | `approved`, `votes`, `_pay(kind="shared")` |
 | 6 frame | 412-413 | all | `t`, `frame` |
 
-Invariants: the order 1 (cash) before 4 (new rebates are queued) is what SM-1 breaks for lag 0: phase 1 pops `pending[t]` at line 335, phase 4 pushes to `pending[t + lag]` at line 222; with lag 0 the key is `t`, which was popped already and `t` is never visited again. Phase 3 decisions use savings and tax as of phase 2 (no payments happened yet); phase 5 re-evaluates with the savings left after phase 4, which is why a supporter can end up blocked (SM-5). `hash_uniform(p.seed, u.uid, t)` (line 363) is stateless, so the number of steps taken cannot change a draw: chunking `step(1)` x n vs `step(n)` vs `run(n)` is identical (checked by the lifecycle fuzz).
+Invariants: phase 1 (cash) runs before phase 4 (new rebates are queued). That order is what broke lag 0 (SM-1, FIXED `d35c485`): phase 1 popped `pending[t]` and phase 4 pushed to `pending[t + lag]`; with lag 0 the key was `t`, already popped, and `t` is never visited again. Now `_pay` books a lag-0 rebate at once (`public_cost`, `cash_net`) and queues only lags >= 1, so every queue key is a future month. Phase 3 decisions use savings and tax as of phase 2 (no payments happened yet); phase 5 re-evaluates with the savings left after phase 4, which is why a supporter can end up blocked (SM-5). `hash_uniform(p.seed, u.uid, t)` (line 363) is stateless, so the number of steps taken cannot change a draw: chunking `step(1)` x n vs `step(n)` vs `run(n)` is identical (checked by the lifecycle fuzz).
 
-Reachable invalid transition: **SM-1** (below). Phase 5 charges owners whose horizon has passed (SM-6).
+Reachable invalid transition: none left from SM-1 (fixed, below). Phase 5 charges owners whose horizon has passed (SM-6).
 
 ## 3. Machine M2: building state
 
@@ -82,7 +85,7 @@ Transitions: `not_retrofitted -> partial` when the first unit of the building be
 
 Invariants (checked by `fuzz_lib.frame_problems`): `state_counts` sums to the number of buildings; `adopted_share * units` is an integer in `[0, units]`; state follows the count; rental implies `not_modelled`, share 0, shared state `none`; `adopted_units` equals the sum of `adopted_share * units`; adopted units never exceed the units of modelled buildings; `adopted_share` never falls. All held on 8000 runs.
 
-Reachable invalid states: a building with zero units divides by zero at `model.py:299` (SM-3). A building can sit in `partial` for the whole run although everyone wanted the work, because a household whose horizon passed (`t >= u.horizon`, line 359) never considers again; with 5..25 year stays and 15 years of run, `retrofitted` is not reachable for such buildings. Design question, E group, not a code defect.
+Reachable invalid states: a building with zero units divided by zero at `model.py:299` (SM-3, FIXED `a3aa37f`: `Params` now rejects it up front). A building can sit in `partial` for the whole run although everyone wanted the work, because a household whose horizon passed (`t >= u.horizon`, line 359) never considers again; with 5..25 year stays and 15 years of run, `retrofitted` is not reachable for such buildings. Design question, E group, not a code defect.
 
 ## 4. Machine M3: dwelling unit
 
@@ -113,7 +116,7 @@ Transition table:
 
 Invariants (`fuzz_lib.sim_problems`, every step, 8000 runs, 0 violations): `savings >= 0` (`plan_financing` takes `min(usable, upfront)` with `usable <= savings`, `financing.py:17-18`); `0 <= tax_left <= tax` (`model.py:231` clamps; non-refundable rebate is capped by `tax_payable`, `rebate.py:15`); `complete` iff `unit_done` and (`shared_paid` or not `needs_shared`); `adopted_in_b[b]` equals the number of complete units of `b`; `n_complete = sum(adopted_in_b) = sum(q_adopt)`; no unit pays the same `kind` twice; `shared_paid` implies the building's vote is `approved` and vice versa; no payment in a rental building.
 
-Reachable invalid state: none found in the manifest region. Out of it: NaN or inf parameters give NaN/inf savings, tax and incomes (SM-2).
+Reachable invalid state: none found in the manifest region. Out of it, NaN or inf parameters used to give NaN/inf savings, tax and incomes (SM-2, FIXED `a3aa37f`: rejected up front).
 
 ## 5. Machine M4: condo shared-measure vote
 
@@ -159,7 +162,7 @@ Invariants (checked on every event, 8000 runs): `from_savings + loan + state_pay
 
 Edge facts (attacked, held): `loan_payment` with rate 0 uses `principal / months` (`financing.py:27`); `loan_term_months` 1 and 1200 ran clean; `savings_scale` 0 with passthrough or public service still adopts (no financing needed); `credit_access: none` with passthrough adopts normally; `savings_usable_share` 0 forces everything onto credit. `rebate_per_euro` stays within `[0, 1]`.
 
-Reachable invalid state: none inside the manifest region; NaN/inf parameters (SM-2).
+Reachable invalid state: none inside the manifest region; NaN/inf parameters (SM-2) are now rejected.
 
 ## 7. Machine M6: rebate lag queue
 
@@ -168,37 +171,22 @@ State: for each future month, a list of `(unit id, cash)`.
 
 | From | Event | Guard | To | Side effects | Lines |
 |---|---|---|---|---|---|
-| (none) | `_pay` with `rebate > 0` | | queued at `t + lag` | event logged with the entitlement | 221-222 |
-| queued at m | `step` with `t == m` | phase 1 | delivered | `public_cost += cash`, `cash_net += cash` | 335-337 |
-| queued at m <= t of the push | | | **never delivered** | stays in `pending` for ever | SM-1 |
+| (none) | `_pay` with `rebate > 0` and `lag == 0` | phase 4 or 5 of month `t` | delivered at once | `public_cost += cash`, `cash_net += cash`; shows in the frame that step emits (index `t + 1`); event logged | `_pay` |
+| (none) | `_pay` with `rebate > 0` and `lag >= 1` | | queued at `t + lag` | event logged with the entitlement | `_pay` |
+| queued at m | `step` with `t == m` | phase 1 | delivered | `public_cost += cash`, `cash_net += cash` | `step` phase 1 |
+| ~~queued at m <= t of the push~~ | | | ~~never delivered~~ | removed: no key in the past can be created | SM-1, FIXED |
 
-Invariants: every entry has `month >= t` (checked by `sim_problems` after each step), `uid` valid, `cash > 0`; `public_cost` equals vendor payments plus rebates whose month is within the executed steps (`fuzz_lib.event_problems`, exact to 1e-9 relative on all manifest cases with lag >= 1). Rebates due after the last executed step stay queued; that is the end of the run, not a defect.
+Invariants: every entry has `month >= t` (checked by `sim_problems` after each step, and for lags 0..24 by `tests/model/test_rebate_lag.py`), `uid` valid, `cash > 0`, `rebate_lag_months` is a whole number >= 0 (`Params` rounds a fractional lag half to even and rejects negative, NaN and inf); `public_cost` equals vendor payments plus rebates whose delivery month (`t` for lag 0, `t + lag` otherwise) is within the executed steps (`fuzz_lib.event_problems`, exact to 1e-9 relative, now also for lag 0). Rebates due after the last executed step stay queued; that is the end of the run, not a defect. Sweep test: with a fixed adoption sequence (high saving per m2 so that NPV is positive for every lag), the total of rebates paid by the horizon equals the total entitled for retrofits made at least `lag` months before it, the same for every lag 0..24, `public_cost + still queued == entitled` for every lag (none lost), and household cash differs between lags by exactly the rebates that have not yet arrived.
 
-### SM-1 (CONFIRMED): lag 0 rebate is queued for a month already processed
+### SM-1 (FIXED `d35c485`, issue #1): lag 0 rebate was queued for a month already processed
 
-Cause: within month `t`, phase 1 pops `pending[t]` (line 335) before phase 4 pushes `pending[t + 0]` (line 222). `rebate_lag_months` is validated as `>= 0` (`params.py:105`) and the manifest allows `min: 0` (`pack.yaml:18`). The same code is in `runtime.js:448,556`.
-A fractional lag (Python API, e.g. 1.5) is accepted and its key `t + 1.5` is never an integer step, so it is lost in the same way (`repro/test_params_nonfinite.py::test_fractional_rebate_lag_is_rejected`).
+Cause (before): within month `t`, phase 1 popped `pending[t]` before phase 4 pushed `pending[t + 0]`. `rebate_lag_months` is validated as `>= 0` (manifest `min: 0`), so the slider's minimum lost every rebate. A fractional lag (Python API, e.g. 1.5) was accepted and its key `t + 1.5` was never an integer step, so it was lost in the same way.
 
-Repro, Python:
+Fix, identical in `model.py` and `runtime.js`: lag 0 means "paid in the month of the retrofit": `_pay` adds the rebate to `public_cost` and the household's `cash_net` at once (it appears in the frame of index `t + 1`, one month before a lag-1 rebate would). `Params` rounds a fractional lag half to even to whole months (Python `round`, JS `pyRound`) and rejects negative, NaN and infinite lags, so the queue only ever holds integer keys in the future. Existing golden files did not change (all had lag >= 1); two cases were added (lag 0, lag 2.5).
 
-```
-$ PYTHONPATH=v3/src .venv/bin/python -m pytest docs/state-machines/repro/test_rebate_lag.py -q -rx
-xx.   (3 tests: lag 0 public cost, stranded queue, control with lag 1)
-XFAIL ...test_lag_zero_rebate_reaches_public_cost - SM-1: lag 0 rebates are queued under the current month ...
-XFAIL ...test_no_rebate_stranded_in_the_queue - SM-1: the rebate queue keeps entries whose month is in the past
-```
+Output before the fix, for the record. Python repro (30 buildings, 60 months, `credit_access=open`, `deduction_rate=0.5`): lag 0 entitled 250,018 euros of rebate and `public_cost` at t = 60 was 0; lag 1 entitled the same and `public_cost` was 250,018. The fuzz white-box check flagged 186 of 300 lag-0 cases ("rebate queue holds 1 item(s) due in month 14, already past (t=15): never delivered"). JS: `lag 0 rebate entitled 250018 public_cost at t=60 0`. Impact was: with lag 0 every rebate-mode result lost its rebate (`public_cost`, `net_cash_by_quintile` and everything derived) while the adoption decision still counted it (`npv.py:41`). The numbers are placeholders, only the mismatch mattered.
 
-Probe behind it (30 buildings, 60 months, `credit_access=open`, `deduction_rate=0.5`): lag 0 entitles 250,018 euros of rebate and `public_cost` at t = 60 is 0; lag 1 entitles the same 250,018 and `public_cost` is 250,018. The fuzz white-box check flags 186 of 300 lag-0 cases ("rebate queue holds 1 item(s) due in month 14, already past (t=15): never delivered").
-Repro, JS:
-
-```
-$ node docs/state-machines/repro/js/lag_zero.js
-lag 0 rebate entitled 250018 public_cost at t=60 0
-BUG PRESENT
-lag 1 rebate entitled 250018 public_cost at t=60 250018
-```
-
-Impact: with lag 0 every rebate-mode result silently loses its rebate: `public_cost`, `net_cash_by_quintile` and everything derived. The adoption decision still counts the rebate (`npv.py:41` uses it), so households act on money that never arrives in the accounts. Likelihood: high, the slider reaches 0. The numbers above are placeholders, only the mismatch matters.
+Regression tests: `tests/model/test_rebate_lag.py` (lag 0 frames, no stale queue key for any lag, sweep over lag 0..24, fractional rounding, bad lags rejected, JS equals Python through `rebate_lag_sweep.js`); 7 of its 11 tests fail on `987ee46`.
 
 ## 8. Machine M7: public-service capacity queue
 
@@ -220,26 +208,22 @@ Observation (not a defect): shared work is charged to every owner even if some o
 
 Identity: `_eligible` `delivery.py:37-39`, `_market_quote` 42-46; JS `runtime.js:142-147`. Implicit.
 States of a household for a quote: in scheme (quintile <= `means_test_max_quintile` or no means test) or market fallback.
-The fallback is applied in all three modes, including `rebate_market` (`delivery.py:54`), as model-spec 7.3 says; `pack.yaml:31` says the opposite: **SM-4 (CONFIRMED)**.
+The fallback is applied in all three modes, including `rebate_market` (`delivery.py:54`), as model-spec 7.3 says; `pack.yaml` used to say the opposite: **SM-4 (TEXT FIXED `36e744e`, issue #2)**.
 
-```
-$ PYTHONPATH=v3/src .venv/bin/python -m pytest docs/state-machines/repro/test_means_test_help_text.py -q -rx
-.x
-XFAIL ...test_help_text_matches_behaviour - SM-4: user-facing help text contradicts the behaviour above
-```
+Before the fix, `pack.yaml` told the user the means test "Does not apply to the rebate". Now the text, `params.py` and `v3/docs/placeholders.md` say what the code does: all three modes are restricted, a household above the cut-off buys on the market at the vendor price, with no rebate and no public payment. Behaviour is unchanged. Whether the means test *should* restrict the rebate is a design decision that is still open (issue #2 stays open, with the comment "Text fixed; behaviour decision still needed" to be posted once the fix is merged).
 
-The passing test next to it pins the behaviour: with `means_test` on and `rebate_market`, every event with a rebate has quintile <= 2, and market purchases by quintiles 3 to 5 carry no rebate and `subsidised == False`. Fixing the text (or the behaviour, as the project decides) flips the strict xfail. Impact: a policymaker reads that the rebate is untouched by the means test.
+Test `tests/model/test_means_test_scope.py` pins the behaviour: with `means_test` on and `rebate_market`, every event with a rebate has quintile <= 2, market purchases by quintiles 3 to 5 carry no rebate and `subsidised == False`; in `passthrough` and `public_service` events above the cut-off have no state payment; JS gives the same counts; and the help text names the rebate as restricted. If the decision is "do not restrict the rebate", change `delivery.py`/`runtime.js`, regenerate the golden files, and turn the first test into its opposite.
 
 ## 10. Machine M9: canvassing time budget
 
 Identity: `_spend` `model.py:191-196`, pressure at 361, population hours 108-111 (JS `runtime.js:417-421, 580, 342-346`). Implicit.
 State per household: `free_hours = max(0, base * spread)`, advocate (`supporter or paid_any`) and co-owned building; weekly canvassing `spend = min(free_hours, canvass_target_hours)`; building pressure `min(1, (sum of others' spend) / canvass_saturation_hours)`, entering only the consideration probability of condos (`ownership.py:48`).
 Invariants (checked): `leisure_hours = free_hours - spend >= 0`, `canvass_hours >= 0`; probability clipped to 1 (`min(1.0, ...)`, `ownership.py:48`); `canvass_target_hours` 0 and 10 and `canvass_saturation_hours` 1e-6 and 1e6 held. A household's own spend is excluded from its pressure (line 361), so a lone advocate gets none.
-Reachable invalid state: `waking_hours_per_week = inf` or `saving_per_m2_year = inf` gives inf in `leisure_hours`/`bills_saved` (SM-2; not reachable from sliders).
+Reachable invalid state (before the SM-2 fix): `waking_hours_per_week = inf` or `saving_per_m2_year = inf` gave inf in `leisure_hours`/`bills_saved`; both are now rejected by `Params`.
 
 ## 11. Machine M10 and M11: energy scenarios; scene entities; params
 
-**Energy scenarios** (`params.py:22,137-139`, `model.py:338`, `npv.py:5-20`): stateless. `level = (1 + g_m)^t` with `g_m` from the scenario; `annuity_pv` has a special case when `|q - 1| < 1e-12` (`npv.py:18`). Validation restricts the scenario to `flat | rising | shock`; the three growth rates are only validated as floats in the Python signature, with no range check (`params.py` has no check for `energy_growth_*`; `-1` or below would make `(1+g)` non-positive; not reachable from the manifest, listed under SM-2 class). `monthly_rate(annual <= -1)` would give a complex number in Python and NaN in JS: SUSPECTED, not repro'd because no manifest or `Params` path sets it except an explicit `energy_growth_rising=-2.0`; that call is accepted by the validator.
+**Energy scenarios** (`params.py:22,137-139`, `model.py:338`, `npv.py:5-20`): stateless. `level = (1 + g_m)^t` with `g_m` from the scenario; `annuity_pv` has a special case when `|q - 1| < 1e-12` (`npv.py:18`). Validation restricts the scenario to `flat | rising | shock`; the three growth rates are only validated as floats in the Python signature, with no range check (`params.py` has no check for `energy_growth_*`; `-1` or below would make `(1+g)` non-positive; not reachable from the manifest, listed under SM-2 class). `monthly_rate(annual <= -1)` would give a complex number in Python and NaN in JS: SUSPECTED, not repro'd because no manifest or `Params` path sets it except an explicit `energy_growth_rising=-2.0`; that call was accepted by the validator before `a3aa37f`; it is rejected now.
 
 **Scene entities** (`scene_entities.py:41-66`, `runtime.js:193-217`, bind.js `78-110`): a pure function from rows to buildings.
 
@@ -250,56 +234,40 @@ Reachable invalid state: `waking_hours_per_week = inf` or `saving_per_m2_year = 
 | tenure | `draw < rental_share` -> rental, else owner-occupied (1 unit) or condo | py 54-59 |
 | areas | deterministic spread, total preserved | py 61-65 |
 
-Invariants: at least one unit with positive area per building, total area equals `gross` (checked by `v3/test_v3/test_entities.py`; parity checked on every fuzz case through `synthetic_table`). No upper bound on units (SM-9 consequence). `bind.js` guards: area from the footprint polygon if `area` is not positive, storeys from levels, height/3 or 1.
+Invariants: at least one unit with positive area per building and at most 1000, total area equals `gross` (checked by `v3/test_v3/test_entities.py`; parity checked on every fuzz case through `synthetic_table` and by the golden `scene_tables.json` cases, which include id-less, null-id, numeric-id and capped rows). `bind.js` guards: area from the footprint polygon if `area` is not positive, storeys from levels, height/3 or 1.
 
-Defects here: **SM-7**, **SM-8**, **SM-9**.
+Defects here (all FIXED `fce5466`, issue #3): **SM-7**, **SM-8**, **SM-9**. Rules now: a row without an id (undefined or null) is `"#<index in the scene's building list>"` in both languages and in `bind.js` (paperdolls' `sceneKey` convention; `bind.js` returns `sceneIds` in the scene's own key type, so a numeric id stays a number); `area` or `storeys` that is not finite and positive, or a gross area that overflows, is `invalid_geometry` in both languages (Python used to raise on NaN or inf); a building above `MAX_UNITS_PER_BUILDING = 1000` dwellings keeps its floor area, is split into 1000 units and is listed in `capped` (`report.capped` in `bind.js`, a `UserWarning` in Python, a console warning in `hook.js`).
 
-### SM-7 (CONFIRMED): scene with no residential building
+### SM-7 (FIXED `fce5466`): scene with no residential building
 
-`bindScene` returns count 0 (`bind.js:106`). In `paramsFromPack`, `else if (b && b.count) o.n_buildings = b.count` (`runtime.js:688`) is False for 0, so the Params default `n_buildings: 200` is used and 200 synthetic buildings run against a declared entity count of 0.
+Before: `bindScene` returned count 0, but in `paramsFromPack` the test `else if (b && b.count)` is False for 0, so the Params default `n_buildings: 200` was used and 200 synthetic buildings ran against a declared entity count of 0 (`start()` threw "entities.building.state has 200 values, expected 0"; with validation off the wrong-size frame went through).
 
-```
-$ node docs/state-machines/repro/js/zero_residential_scene.js
-bindScene -> {"building":0}
-BUG PRESENT: start() throws: runtime great-retrofit, frame 0: entities.building.state has 200 values, expected 0; entities.building.tenure has 200 values, expected 0; ...
-with validation off: frame carries 200 buildings for a declared count of 0
-```
+Now: `paramsFromPack` throws one message when the bound scene has no building (specs `[]` or declared count 0): "great-retrofit: the scene has no residential building to model (0 model buildings), so there is nothing to run. Load a scene with homes, or check that its buildings are not all marked non-residential or of invalid size." No run starts, in the shell the message reaches the header like any runtime error; the synthetic scene is used only when no scene was bound (`count > 0` and no specs). `hook.js` also logs the fact when binding. Test: `tests/model/scene_contract.js`, first block (fails on `987ee46` at its first assertion).
 
-### SM-8 (CONFIRMED): buildings without an id
+### SM-8 (FIXED `fce5466`): buildings without an id
 
-```
-$ node docs/state-machines/repro/js/idless_buildings.js
-entities {"building":3} scene index of each entity [ -1, -1, 2 ] warnings ["2 building entities name a building the scene does not have (undefined, undefined): not drawn"]
-BUG PRESENT: 2 modelled building(s) stand on no scene building
-```
+Before: `rows.push({ id: b.id, ... })` then `String(row.id)` = `"undefined"` (`bind.js`, `runtime.js`); paperdolls looks them up as `"#0"`, `"#1"` (`packruntime.js` `sceneKey`). They counted in every series and were never drawn (repro output: `scene index of each entity [ -1, -1, 2 ]`, "2 building entities name a building the scene does not have (undefined, undefined): not drawn").
 
-Cause: `rows.push({ id: b.id, ... })` (`bind.js:98`) then `String(row.id)` = `"undefined"` (`runtime.js:199`); paperdolls looks them up as `"#0"`, `"#1"` (`packruntime.js:54`). They still count in every series.
+Now: the rule above, in `scene_key` (Python) and `sceneKey` (JS), used by `buildEntities`, `bind.js` (including the neighbours map). Test: `scene_contract.js` second block (scene index of each entity `[0, 2, 3, 4]` for a scene with an id-less, a non-residential, a null-id and a numeric-id building, no warnings), `tests/model/test_scene_contract.py`, golden scene case `scene_rows_idless_numeric_capped`.
 
-### SM-9 (CONFIRMED): Int16 overflow of `units`
+### SM-9 (FIXED `fce5466`): Int16 overflow of `units`
 
-```
-$ node docs/state-machines/repro/js/int16_overflow.js
-model units in the building: 40000
-frame units field: -25536  units_done: 0
-BUG PRESENT: units wrapped
-```
-
-(`runtime.js:651`; also `units_done`; `cannot_front`'s `Int8Array` is fine as it holds 0/1 and the category arrays hold small indices.)
+Before: `toPackFrame` stored `units` and `units_done` in `Int16Array`; a 40,000-dwelling building gave `-25536`. Now both are `Int32Array`, and bind-built buildings are capped at 1000 dwellings with a report (above). `cannot_front`'s `Int8Array` holds 0/1 and the category arrays hold small indices. Test: `scene_contract.js` third block (a frame with 40,000 units survives; a 5,000 m2 x 800 levels building is capped to 1000 units with its floor area kept and reported).
 
 ### Params validation (M12)
 
-`Params.__post_init__` (`params.py:101-135`) and the JS `Params()` (`runtime.js:290-312`) are the same list. Python-vs-JS acceptance was compared value by value (`tests/fuzz/run_js_params.js`) over every field and 18 values each. Differences, by cause:
+`Params.__post_init__` (`params.py`, with `common/validation.py` and `entities.validate_building_spec`) and the JS `Params()` (`runtime.js`: the `v*` helpers, `sceneRules`, `validateBuilding`) are now one rule set (FIXED `a3aa37f`, issue #4: SM-2, SM-3, SM-10):
 
-| Cause | Python | JS | Status |
-|---|---|---|---|
-| NaN in `validate_positive/nonnegative` | accepts (comparison False) | rejects (`!(v > 0)`) | SM-2 CONFIRMED |
-| `null`, `"0.5"`, `[]` where a number is expected | `TypeError` | accepted, coerced (`null >= 0`) | SM-10 CONFIRMED |
-| float with integer value (1.0, 3.0, 1e308) for integer fields | `ValueError` | accepted (`Number.isInteger`) | harmless: JS has one number type; `1e308` months would hang a run, not reachable from sliders |
-| `True` for integer fields | accepted (bool is int) | rejected | harmless |
-| inf | accepted where `>= 0`/`> 0` | accepted | SM-2 |
-| manifest range edges (min, max, default of every numeric param) | accepted | accepted | REFUTED as a defect (`test_validator_parity_on_manifest_ranges`) |
+* a number is a finite real number: NaN, +/-inf, booleans, strings, null and arrays are rejected in both languages (JS no longer coerces through comparisons);
+* whole-number fields (`horizon_months`, `n_buildings`, `loan_term_months`, `seed`, `scene_seed`, `means_test_max_quintile`) take an integer or an integer-valued float (JS has one number type, so `3.0` is `3`); Python stores an int; `rebate_lag_months` is rounded half to even (SM-1);
+* booleans must be booleans; `delivery_mode`, `credit_access`, `energy_scenario` must be strings from their list; `energy_growth_*` finite and above -1; `income_log_mean` finite; `work_hours_by_quintile` five finite non-negative numbers; `scene_rules` an object with known keys and the same ranges; unknown `Params` keys are an error;
+* explicit buildings: a string id, a known tenure, 1 to 1000 dwellings, every dwelling area finite and above 0, `rental_draw` null or in [0, 1]; the error names the building (`buildings[2] ('x'): ...`).
 
-Gaps in both: no check on `energy_growth_*`, `income_log_mean`, `rebate_lag_months` integrality (SM-1 fractional), `scene_rules` ranges beyond probability checks, explicit buildings (SM-3), `seed` type. Every min, max and default of the manifest ranges is accepted by both validators.
+Evidence: `tests/model/validation_vectors.json` (414 vectors: 19 accepted, 395 rejected) checked by `tests/model/test_validation_vectors.py` for Python, and through `validation_vectors.js` for JS; accepted vectors also run two steps with finite output; for number vectors both languages name the field in the error. `tests/fuzz/run_js_params.js` still checks that every manifest min, max and default is accepted by both (`test_validator_parity_on_manifest_ranges`).
+
+Differences that remain, both harmless: `True` for an integer field is rejected in both now (Python used to accept it); `1e308` months would hang a run and is not reachable from the sliders (a `horizon_months` upper bound was not added; it is not a validation question but a run-length one).
+
+Gaps still in both (not part of #4): `scene_rules` and the `Params` ranges are validated one by one, there is no cross-field check beyond `years_in_dwelling_max >= min`, and duplicate building ids in `buildings` are not rejected.
 
 ## 12. Frame invariants (the checks the fuzz applies at every step)
 
@@ -315,7 +283,7 @@ Gaps in both: no check on `energy_growth_*`, `income_log_mean`, `rebate_lag_mont
 8. white-box (live `Simulation`): savings >= 0, `0 <= tax_left <= tax`, counters in step, queue entries not in the past, `0 <= carry < 1`.
 9. event log: payers add up to the price, savings not overdrawn, loan <= credit limit, rebate <= price and (non-refundable) <= tax payable, no subsidy beyond the means test, a vote never passes below threshold, public-service jobs <= slots each month, `public_cost` = vendor payments + arrived rebates.
 
-Result: all hold on 8000 runs (see section 1), with the single exception of item 8's queue entry check and item 9's last line under lag 0 (SM-1), and the validation gaps of M12.
+Result: all hold on 8000 runs (see section 1). The single exception, item 8's queue entry check and item 9's last line under lag 0, was SM-1 and is fixed; the generators still avoid lag 0 and the SM-2/SM-3 regions (they have their own regression tests), and `tests/model` covers lag 0..24.
 
 ## 13. Machine M13: runtime handle lifecycle
 
@@ -369,7 +337,7 @@ Other lifecycle facts:
 | R-7 | NaN in a frame inside the manifest region | all means guarded by counts; the only NaN is the adapter's `nz(null)` | `runtime.js:646`, checks 2 and 6 |
 | R-8 | handles share state | module level holds constants and stateless strategies | `runtime.js` header; interleaved handles checked |
 | R-9 | vote threshold 0 passes an empty vote | `0 < t <= 1` validated in both | `params.py:121`, `runtime.js:302` |
-| R-10 | zero buildings or zero units from Python's own scene path | `n_buildings` positive; `build_entities` makes `>= 1` unit; zero buildings only arises from the scene (SM-7) | `params.py:103`, `scene_entities.py:53` |
+| R-10 | zero buildings or zero units from Python's own scene path | `n_buildings` positive; `build_entities` makes `>= 1` unit; zero buildings only arises from the scene (SM-7, now a clear error) | `params.py`, `scene_entities.py` |
 | R-11 | one building, all-rental scene, zero units adopted | all frames valid and finite (state `not_modelled`, series null where they should be) | edge fuzz |
 | R-12 | `NaN`, `inf`, `-0` from empty denominators in frames | each division guarded (`if n else None`, `if self.q_total[k] else`) | `model.py:317-330` |
 | R-13 | JS-Python drift beyond tolerance | 8000 cases, 0 differences | section 15 |
@@ -386,7 +354,7 @@ Mechanisms that keep them equal and could silently stop doing so:
 
 Fuzz evidence: `test_fuzz_parity.py` compares the whole frame tree (every building and series, every step), events and votes, tolerance 1e-9 relative, and checks the adapter's typed arrays against an independent re-derivation. Zero differences, which includes the edge region (vote threshold 1.0, shared share 0 and 1, consideration probability 0 and 1, credit none with passthrough, capacity 0 and 1, all-rental scenes, one-building scenes, big condos, seeds beyond int32).
 
-Same bug on both sides (the golden tests agree with it): SM-1 (`runtime.js:448, 556`) and SM-4.
+Same bug on both sides (the golden tests agreed with it): SM-1 (fixed in both) and SM-4 (text fixed; the behaviour is the same in both and still pinned).
 
 ## 16. No-data and NaN handling in frames
 
@@ -400,6 +368,6 @@ Same bug on both sides (the golden tests agree with it): SM-1 (`runtime.js:448, 
 
 * SM-12: effect of frame 181 on the store: needs the paperdolls store/worker, out of scope.
 * Python < 3.12 parity (`pySum`): no interpreter available here.
-* `monthly_rate` with an annual rate <= -1 (explicit `energy_growth_*` below -1): validator accepts it; not exercised.
-* Python `build_entities` with NaN `area`: only reachable with rows that do not come from `synthetic_table`.
+* ~~`monthly_rate` with an annual rate <= -1~~: now rejected by `Params` (`energy_growth_*` must be above -1). ~~Python `build_entities` with NaN `area`~~: now `invalid_geometry`.
+* Design questions SM-5, SM-6, SM-15: `docs/design-questions.md`, issue #5, no behaviour change. SM-4's behaviour (should the means test restrict the rebate) is open in issue #2. SM-11 to SM-13 are paperdolls'.
 * PackWorker (structured clone of frames, cancellation of an in-flight `run` by `setParams`): not driven.
