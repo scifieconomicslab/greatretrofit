@@ -7,12 +7,24 @@ Does not depend on paperdolls.
 """
 from __future__ import annotations
 
+import math
+import warnings
 from dataclasses import dataclass, field
 from typing import Iterable, Mapping, Tuple
 
 from .common.rng import Rng, hash_uniform
 from .entities import BuildingSpec
 from .common.validation import validate_positive, validate_probability
+
+
+# Largest number of dwellings one scene building can get. A building above it (a huge footprint times many levels: bad geometry) keeps its floor
+# area but is split into this many units, and build_entities reports it in `capped` (and warns). Same constant in runtime.js (SM-9).
+MAX_UNITS_PER_BUILDING = 1000
+
+
+def scene_key(row_id, index: int) -> str:
+    """The id of a scene row. A row without an id is "#<index>" (index in the scene's building list), the paperdolls convention (viz/packruntime.js sceneKey). Same rule in runtime.js."""
+    return f"#{index}" if row_id is None else str(row_id)
 
 
 @dataclass(frozen=True)
@@ -36,21 +48,25 @@ class SceneEntities:
     buildings: Tuple[BuildingSpec, ...]
     excluded: Tuple[Tuple[str, str], ...]          # (scene id, reason)
     scene_ids: Tuple[str, ...]                     # model building index -> scene id
+    capped: Tuple[Tuple[str, int], ...] = ()       # (scene id, dwellings before the cap): buildings split into MAX_UNITS_PER_BUILDING units
 
 
 def build_entities(rows: Iterable[Mapping], rules: SceneRules = SceneRules(), scene_seed: int = 0) -> SceneEntities:
-    buildings, excluded = [], []
+    buildings, excluded, capped = [], [], []
     for k, row in enumerate(rows):
-        sid = str(row["id"])
+        sid = scene_key(row.get("id"), k)
         if not row.get("residential", False):
             excluded.append((sid, "non_residential"))
             continue
         area, storeys = float(row["area"]), int(row.get("storeys") or 1)
-        if area <= 0 or storeys <= 0:
+        gross = area * storeys * rules.usable_fraction
+        if not (area > 0 and storeys > 0 and math.isfinite(gross)):      # NaN, inf, zero, negative
             excluded.append((sid, "invalid_geometry"))
             continue
-        gross = area * storeys * rules.usable_fraction
         n_units = max(1, round(gross / rules.avg_unit_area))
+        if n_units > MAX_UNITS_PER_BUILDING:
+            capped.append((sid, n_units))
+            n_units = MAX_UNITS_PER_BUILDING
         rental_share = rules.rental_share_single if n_units == 1 else rules.rental_share_multi
         draw = hash_uniform(scene_seed, k, 1)
         if draw < rental_share:
@@ -63,7 +79,10 @@ def build_entities(rows: Iterable[Mapping], rules: SceneRules = SceneRules(), sc
         s = sum(raw)
         areas = tuple(gross * w / s for w in raw)
         buildings.append(BuildingSpec(sid, tenure, areas, draw))
-    return SceneEntities(tuple(buildings), tuple(excluded), tuple(b.id for b in buildings))
+    if capped:
+        warnings.warn(f"{len(capped)} scene building(s) have more than {MAX_UNITS_PER_BUILDING} dwellings by the scene rules (first: {capped[0][0]} with {capped[0][1]}); "
+                      f"each is modelled with {MAX_UNITS_PER_BUILDING} units", stacklevel=2)
+    return SceneEntities(tuple(buildings), tuple(excluded), tuple(b.id for b in buildings), tuple(capped))
 
 
 def synthetic_table(n: int, scene_seed: int = 0):

@@ -46,7 +46,7 @@ const scenes = JSON.parse(fs.readFileSync(path.join(dir, 'golden', 'scene_tables
 for (const c of cases.scene_table_cases) {
   const e = R.sceneEntities.buildEntities(c.rows, R.sceneEntities.sceneRules(), c.scene_seed);
   check(c.name, scenes[c.name], {
-    buildings: e.buildings.map(b => ({ id: b.id, tenure: b.tenure, unit_areas: b.unit_areas })), excluded: e.excluded,
+    buildings: e.buildings.map(b => ({ id: b.id, tenure: b.tenure, unit_areas: b.unit_areas })), excluded: e.excluded, capped: e.capped,
   });
 }
 

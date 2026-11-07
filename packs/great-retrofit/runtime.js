@@ -189,19 +189,26 @@
   }
   const makeSpec = (id, tenure, unit_areas, rental_draw) => ({ id, tenure, unit_areas: unit_areas.slice(), units: unit_areas.length, floor_area: pySum(unit_areas), rental_draw: rental_draw === undefined ? null : rental_draw });
 
-  // rows: {id, area (footprint m2), storeys, residential}. Returns {buildings, excluded: [[id, reason]], scene_ids}.
+  // Largest number of dwellings of one scene building. A building above it (huge footprint times many levels: bad geometry) keeps its floor area
+  // but is split into this many units and is listed in `capped` (SM-9). Same constant and rule as scene_entities.py.
+  const MAX_UNITS_PER_BUILDING = 1000;
+  // The id of a scene row: a row without an id is "#<index>" (index in the scene's building list), the paperdolls convention (sceneKey in viz/packruntime.js). Same as scene_key() in Python.
+  const sceneKey = (id, index) => (id === undefined || id === null ? '#' + index : String(id));
+
+  // rows: {id, area (footprint m2), storeys, residential}. Returns {buildings, excluded: [[id, reason]], scene_ids, capped: [[id, dwellings before the cap]]}.
   function buildEntities(rows, rules, sceneSeed) {
     rules = rules || sceneRules(); sceneSeed = sceneSeed || 0;
-    const buildings = [], excluded = [];
+    const buildings = [], excluded = [], capped = [];
     let k = -1;
     for (const row of rows) {
       k++;
-      const sid = String(row.id);
+      const sid = sceneKey(row.id, k);
       if (!row.residential) { excluded.push([sid, 'non_residential']); continue; }
       const area = Number(row.area), storeys = Math.trunc(Number(row.storeys) || 1);
-      if (!(area > 0) || !(storeys > 0)) { excluded.push([sid, 'invalid_geometry']); continue; }
       const gross = area * storeys * rules.usable_fraction;
-      const nUnits = Math.max(1, pyRound(gross / rules.avg_unit_area));
+      if (!(area > 0 && storeys > 0 && Number.isFinite(gross))) { excluded.push([sid, 'invalid_geometry']); continue; }
+      let nUnits = Math.max(1, pyRound(gross / rules.avg_unit_area));
+      if (nUnits > MAX_UNITS_PER_BUILDING) { capped.push([sid, nUnits]); nUnits = MAX_UNITS_PER_BUILDING; }
       const rentalShare = nUnits === 1 ? rules.rental_share_single : rules.rental_share_multi;
       let tenure;
       const draw = hashUniform(sceneSeed, k, 1);
@@ -213,7 +220,7 @@
       const s = pySum(raw);
       buildings.push(makeSpec(sid, tenure, raw.map(w => gross * w / s), draw));
     }
-    return { buildings, excluded, scene_ids: buildings.map(b => b.id) };
+    return { buildings, excluded, scene_ids: buildings.map(b => b.id), capped };
   }
   function syntheticTable(n, sceneSeed) {
     const rng = new Rng(sceneSeed || 0), rows = [];
@@ -222,7 +229,7 @@
     }
     return rows;
   }
-  const sceneEntities = { sceneRules, buildEntities, syntheticTable, makeSpec };
+  const sceneEntities = { sceneRules, buildEntities, syntheticTable, makeSpec, sceneKey, MAX_UNITS_PER_BUILDING };
 
   // ---- params.py -----------------------------------------------------------------------------
   const DEFAULTS = {
@@ -655,8 +662,9 @@
   // v3 frame -> pack frame: category = index into the manifest's values, NaN for null, series as arrays aligned with `y`.
   function toPackFrame(fr) {
     const n = fr.buildings.length;
-    const state = new Int8Array(n), tenure = new Int8Array(n), shared = new Int8Array(n), units = new Int16Array(n);
-    const share = new Float64Array(n), incomeQ = new Float64Array(n), done = new Int16Array(n), cannot = new Int8Array(n);
+    // units and units_done are Int32Array: Int16Array wrapped above 32767 dwellings (SM-9; bind also caps a building at MAX_UNITS_PER_BUILDING)
+    const state = new Int8Array(n), tenure = new Int8Array(n), shared = new Int8Array(n), units = new Int32Array(n);
+    const share = new Float64Array(n), incomeQ = new Float64Array(n), done = new Int32Array(n), cannot = new Int8Array(n);
     fr.buildings.forEach((b, i) => {
       done[i] = pyRound(b.adopted_share * b.units);
       cannot[i] = (b.units_cannot_front > 0 && b.units_cannot_front === b.units - done[i]) ? 1 : 0;   // every unit still to do cannot pay now
@@ -686,11 +694,15 @@
     };
   }
 
+  const NO_BUILDINGS_MESSAGE = 'great-retrofit: the scene has no residential building to model (0 model buildings), so there is nothing to run. ' +
+    'Load a scene with homes, or check that its buildings are not all marked non-residential or of invalid size.';
   // Manifest params -> core Params. `ents.building.specs` (from bind.js, once the shell passes it) beats the synthetic scene.
   // The run length is not a parameter here: the shell asks for steps up to the manifest's time.steps.
   function paramsFromPack(p, ents, seed) {
     const o = Object.assign({}, p, { seed: seed | 0 });
     const b = ents && ents.building;
+    // A scene was bound (specs given, count declared) and nothing in it is residential: say so. No fallback to the synthetic buildings (SM-7).
+    if (b && ((Array.isArray(b.specs) && b.specs.length === 0) || b.count === 0)) throw new Error(NO_BUILDINGS_MESSAGE);
     if (b && b.specs && b.specs.length) o.buildings = b.specs;
     else if (b && b.count) o.n_buildings = b.count;
     return Params(o);
@@ -716,7 +728,7 @@
   const api = {
     FRAME_SCHEMA_VERSION, BUILDING_STATES, SHARED_STATES, TENURES, DELIVERY_MODES, ENERGY_SCENARIOS, CREDIT_ACCESS, DEFAULTS,
     npv, financing, rebate, credit, ownership, delivery, sceneEntities,
-    Params, Simulation, runSimulation, toPackFrame, pyRound, pySum,
+    Params, Simulation, runSimulation, toPackFrame, pyRound, pySum, NO_BUILDINGS_MESSAGE,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.GreatRetrofit = api;

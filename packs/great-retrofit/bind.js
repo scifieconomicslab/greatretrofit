@@ -4,7 +4,7 @@
  * (same code path as runtime.js sceneEntities.buildEntities; the rules and numbers are PLACEHOLDERS, see v3/docs/placeholders.md).
  *
  * Scene building fields used:
- *   id           required.
+ *   id           optional. A building without one is addressed as "#<index>" (index in scene.buildings), as paperdolls' sceneKey does.
  *   footprint    [[x, y], ...] in metres (outer ring). Gives the area when `area` is absent (older scene format).
  *   area         footprint area in m2, if the scene exporter provides it (newer format; otherwise computed from the footprint).
  *   levels       storeys (older format; may be assumed by the exporter).  `storeys` is accepted as a synonym.
@@ -19,6 +19,7 @@
  *   index:     Map scene id -> model building index
  *   neighbours: Map scene id -> ids
  *   excluded:  [[scene id, reason]]
+ *   capped:    [[scene id, dwellings by the scene rules]] buildings split into at most MAX_UNITS_PER_BUILDING units
  *   report:    {scene_buildings, modelled, excluded: {reason: n}, assumed: {area_from_footprint, residential, storeys_default, storeys_from_height}}
  * }
  * Where a building stands is the scene's; which tenure and how many units it gets is the model's, from the scene seed (not the model seed).
@@ -49,8 +50,8 @@
     const rules = sceneRules(options.rules), sceneSeed = options.sceneSeed || 0;
     const src = (scene && scene.buildings) || [];
     const assumed = { area_from_footprint: 0, residential: 0, storeys_default: 0, storeys_from_height: 0 };
-    const rows = [], neighbours = new Map();
-    for (const b of src) {
+    const rows = [], neighbours = new Map(), keyOf = new Map();    // keyOf: model id (string) -> the scene's own key (string or number, as paperdolls looks it up)
+    src.forEach((b, idx) => {
       let area = Number(b.area);
       if (!(area > 0)) { area = polygonArea(b.footprint); if (b.area === undefined || b.area === null) assumed.area_from_footprint++; }
       let storeys = Number(b.levels !== undefined && b.levels !== null ? b.levels : b.storeys);
@@ -65,16 +66,18 @@
       else if (b.residential === 'probable') { residential = true; assumed.residential++; }
       else { residential = !NON_RESIDENTIAL.has(String((b.osm && b.osm.building) || '').toLowerCase()); assumed.residential++; }
       rows.push({ id: b.id, area, storeys, residential });
-      if (Array.isArray(b.neighbours)) neighbours.set(String(b.id), b.neighbours.map(String));
-    }
+      const key = GR.sceneEntities.sceneKey(b.id, idx);
+      if (!keyOf.has(key)) keyOf.set(key, b.id === undefined || b.id === null ? key : b.id);
+      if (Array.isArray(b.neighbours)) neighbours.set(key, b.neighbours.map(String));
+    });
     const e = buildEntities(rows, rules, sceneSeed);
     const excludedBy = {};
     for (const [, why] of e.excluded) excludedBy[why] = (excludedBy[why] || 0) + 1;
     const index = new Map(e.scene_ids.map((id, i) => [id, i]));
     return {
       entities: { building: { count: e.buildings.length, specs: e.buildings } },
-      sceneIds: e.scene_ids, index, neighbours, excluded: e.excluded,
-      report: { scene_buildings: src.length, modelled: e.buildings.length, excluded: excludedBy, assumed },
+      sceneIds: e.scene_ids.map(id => keyOf.get(id)), index, neighbours, excluded: e.excluded, capped: e.capped,
+      report: { scene_buildings: src.length, modelled: e.buildings.length, excluded: excludedBy, capped: e.capped.length, assumed },
     };
   }
 

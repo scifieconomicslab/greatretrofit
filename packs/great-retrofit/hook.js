@@ -9,6 +9,7 @@
   const PD = root.PaperDolls;
   if (!PD || typeof PD.registerRuntime !== 'function' || PD.__grHooked) return;
   PD.__grHooked = true;
+  const maxUnits = () => (root.GreatRetrofit && root.GreatRetrofit.sceneEntities.MAX_UNITS_PER_BUILDING);
   const orig = PD.registerRuntime.bind(PD);
   PD.registerRuntime = function (id, impl) {
     if (id !== 'great-retrofit') return orig(id, impl);
@@ -23,6 +24,8 @@
         const B = root.GreatRetrofitBind;
         if (!B) throw new Error('great-retrofit: bind.js is not loaded');
         const r = B.bindScene(scene, { sceneSeed: 1 });
+        if (r.capped.length && root.console) root.console.warn('great-retrofit: ' + r.capped.length + ' scene building(s) have more than ' + maxUnits() + ' dwellings by the scene rules (first: ' + r.capped[0][0] + ' with ' + r.capped[0][1] + '); each is modelled with ' + maxUnits() + ' units');
+        if (r.entities.building.count === 0 && root.console) root.console.warn('great-retrofit: the scene has no residential building to model');
         return { entities: { building: { count: r.entities.building.count, attrs: { specs: r.entities.building.specs } } }, sceneIndex: { building: r.sceneIds } };
       },
     });

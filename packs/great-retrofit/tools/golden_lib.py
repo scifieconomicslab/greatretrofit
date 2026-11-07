@@ -2,6 +2,7 @@
 import json
 import math
 import sys
+import warnings
 from pathlib import Path
 
 PACK = Path(__file__).resolve().parents[1]
@@ -36,9 +37,11 @@ def case_output(case):
 
 
 def scene_output(case):
-    e = build_entities(case["rows"], SceneRules(), case["scene_seed"])
+    with warnings.catch_warnings():     # a capped case warns by design
+        warnings.simplefilter("ignore")
+        e = build_entities(case["rows"], SceneRules(), case["scene_seed"])
     return {"buildings": [{"id": b.id, "tenure": b.tenure, "unit_areas": list(b.unit_areas)} for b in e.buildings],
-            "excluded": [list(x) for x in e.excluded]}
+            "excluded": [list(x) for x in e.excluded], "capped": [list(x) for x in e.capped]}
 
 
 def diff(a, b, path="", tol=FLOAT_TOL):

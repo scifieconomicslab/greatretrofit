@@ -12,9 +12,6 @@ PD = os.environ.get("PAPERDOLLS_DIR", "/data/ScifiEconomicsLab/scifirender/paper
 pytestmark = pytest.mark.skipif(shutil.which("node") is None or not Path(PD, "viz/packruntime.js").exists(), reason="node or paperdolls not available")
 
 BUGS = {
-    "zero_residential_scene.js": "SM-7: scene with no residential buildings runs 200 synthetic ones against a declared count of 0",
-    "idless_buildings.js": "SM-8: buildings without an id are modelled but unplaceable",
-    "int16_overflow.js": "SM-9: units / units_done in Int16Array wrap above 32767",
     "params_coercion.js": "SM-10: JS Params accepts null, numeric strings and arrays",
 }
 
