@@ -25,9 +25,3 @@ def test_infinite_parameter_does_not_reach_frames(name):
     r = run_simulation(Params(n_buildings=15, horizon_months=36, **{name: float("inf")}))
     bad = [p for fr in r.frames for p, v in F._walk_numbers(fr) if not math.isfinite(v)]
     assert not bad, f"non-finite numbers in frames, e.g. {bad[:2]}"      # observed: leisure_hours / canvass_hours / bills_saved
-
-
-@pytest.mark.xfail(strict=True, reason="SM-2: rebate_lag_months = 1.5 is accepted; the queue key 1.5 + t is never popped, so the rebate is lost")
-def test_fractional_rebate_lag_is_rejected():
-    with pytest.raises(ValueError):
-        Params(rebate_lag_months=1.5)

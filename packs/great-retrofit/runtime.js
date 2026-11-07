@@ -231,7 +231,7 @@
     // policy levers (sliders)
     deduction_rate: 0.3,            // PLACEHOLDER
     refundable: false,              // PLACEHOLDER
-    rebate_lag_months: 12,          // PLACEHOLDER
+    rebate_lag_months: 12,          // PLACEHOLDER months until the rebate arrives; 0 = paid in the month of the retrofit; fractions round half-to-even
     credit_access: 'income_tested', // PLACEHOLDER
     loan_rate: 0.04,                // PLACEHOLDER
     delivery_mode: 'rebate_market', // PLACEHOLDER
@@ -296,6 +296,8 @@
     for (const n of ['rental_share_single', 'rental_share_multi']) if (p[n] !== null) vProb(p[n], n);
     vIntPos(p.horizon_months, 'horizon_months'); vIntPos(p.n_buildings, 'n_buildings'); vIntPos(p.loan_term_months, 'loan_term_months');
     vNonneg(p.rebate_lag_months, 'rebate_lag_months');
+    if (!Number.isFinite(p.rebate_lag_months)) throw new Error(`rebate_lag_months must be finite, got ${p.rebate_lag_months}`);
+    p.rebate_lag_months = pyRound(p.rebate_lag_months);      // whole months, half-to-even (as Python round)
     for (const n of ['deduction_rate', 'vendor_margin', 'public_overhead', 'public_capacity', 'consider_prob_base', 'neighbour_boost', 'savings_usable_share', 'tax_rate', 'shared_share', 'canvass_boost', 'free_time_spread']) vProb(p[n], n);
     for (const n of ['cost_per_m2', 'saving_per_m2_year', 'income_log_sd', 'savings_log_sd', 'years_in_dwelling_min', 'years_in_dwelling_max', 'canvass_saturation_hours', 'waking_hours_per_week']) vPositive(p[n], n);
     for (const n of ['loan_rate', 'loan_rate_risk_premium', 'canvass_target_hours', 'committed_hours_per_week', 'discount_rate', 'credit_income_threshold', 'credit_loan_to_income', 'tax_free_allowance', 'savings_months_of_income', 'savings_scale']) vNonneg(p[n], n);
@@ -445,9 +447,14 @@
       const p = this.p, q = ev.quote;
       this.publicCost += q.state_pays_now;
       if (q.rebate) {
-        const m = t + q.rebate_lag_months;
-        if (!this.pending.has(m)) this.pending.set(m, []);
-        this.pending.get(m).push([u.uid, q.rebate]);
+        if (q.rebate_lag_months === 0) {        // lag 0 = paid in the month of the retrofit (phase 1 of this month has already run)
+          this.publicCost += q.rebate;
+          u.cash_net += q.rebate;
+        } else {                                // lag is a whole number >= 1 (Params rounds it): delivered in phase 1 of month t + lag
+          const m = t + q.rebate_lag_months;
+          if (!this.pending.has(m)) this.pending.set(m, []);
+          this.pending.get(m).push([u.uid, q.rebate]);
+        }
       }
       const k = u.quintile - 1;
       this.qPrice[k] += q.price;

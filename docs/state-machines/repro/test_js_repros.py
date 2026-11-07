@@ -15,7 +15,6 @@ BUGS = {
     "zero_residential_scene.js": "SM-7: scene with no residential buildings runs 200 synthetic ones against a declared count of 0",
     "idless_buildings.js": "SM-8: buildings without an id are modelled but unplaceable",
     "int16_overflow.js": "SM-9: units / units_done in Int16Array wrap above 32767",
-    "lag_zero.js": "SM-1 (JS): rebate lag 0 never delivered",
     "params_coercion.js": "SM-10: JS Params accepts null, numeric strings and arrays",
 }
 

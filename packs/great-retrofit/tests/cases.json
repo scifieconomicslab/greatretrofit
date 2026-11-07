@@ -3,6 +3,8 @@
   "cases": [
     {"name": "rebate_default_s1", "params": {"seed": 1, "n_buildings": 24, "horizon_months": 84}},
     {"name": "rebate_refundable_nocredit_s2", "params": {"seed": 2, "n_buildings": 24, "horizon_months": 84, "refundable": true, "credit_access": "none", "deduction_rate": 0.5}},
+    {"name": "rebate_lag0_open_credit_s30", "params": {"seed": 30, "n_buildings": 24, "horizon_months": 84, "credit_access": "open", "rebate_lag_months": 0, "deduction_rate": 0.5}},
+    {"name": "rebate_lag_fractional_s31", "params": {"seed": 31, "n_buildings": 24, "horizon_months": 84, "credit_access": "open", "rebate_lag_months": 2.5, "deduction_rate": 0.5}},
     {"name": "rebate_open_credit_s3", "params": {"seed": 3, "n_buildings": 24, "horizon_months": 84, "credit_access": "open", "rebate_lag_months": 6, "energy_scenario": "shock"}},
     {"name": "rebate_flat_energy_zero_savings_s4", "params": {"seed": 4, "n_buildings": 24, "horizon_months": 84, "energy_scenario": "flat", "savings_scale": 0.0, "scene_seed": 9}},
     {"name": "passthrough_s5", "params": {"seed": 5, "n_buildings": 24, "horizon_months": 84, "delivery_mode": "passthrough"}},

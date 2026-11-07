@@ -5,6 +5,7 @@ economists' answers (open questions held outside this repository). Do not read
 results from these numbers as findings. List: v3/docs/placeholders.md
 (a test keeps that list in sync with this file).
 """
+import math
 from dataclasses import dataclass, field
 from typing import Optional, Tuple
 
@@ -36,7 +37,7 @@ class Params:
     # --- policy levers (the sliders) ---
     deduction_rate: float = 0.3          # PLACEHOLDER share of cost deductible from tax
     refundable: bool = False             # PLACEHOLDER refundable-credit toggle
-    rebate_lag_months: int = 12          # PLACEHOLDER months until the rebate arrives
+    rebate_lag_months: int = 12          # PLACEHOLDER months until the rebate arrives; 0 = paid in the month of the retrofit; a fractional value is rounded half-to-even to whole months
     credit_access: str = "income_tested"  # PLACEHOLDER income_tested | open | none
     loan_rate: float = 0.04              # PLACEHOLDER annual loan rate
     delivery_mode: str = "rebate_market"  # PLACEHOLDER rebate_market | passthrough | public_service
@@ -103,6 +104,9 @@ class Params:
         validate_integer_positive(self.n_buildings, "n_buildings")
         validate_integer_positive(self.loan_term_months, "loan_term_months")
         validate_nonnegative(self.rebate_lag_months, "rebate_lag_months")
+        if not math.isfinite(self.rebate_lag_months):
+            raise ValueError(f"rebate_lag_months must be finite, got {self.rebate_lag_months}")
+        object.__setattr__(self, "rebate_lag_months", int(round(self.rebate_lag_months)))   # whole months, half-to-even (as JS pyRound)
         for name in ("deduction_rate", "vendor_margin", "public_overhead", "public_capacity",
                      "consider_prob_base", "neighbour_boost", "savings_usable_share", "tax_rate",
                      "shared_share", "canvass_boost", "free_time_spread"):

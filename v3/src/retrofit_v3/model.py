@@ -219,7 +219,11 @@ class Simulation:
         p, q = self.p, ev.quote
         self.public_cost += q.state_pays_now
         if q.rebate:
-            self.pending.setdefault(t + q.rebate_lag_months, []).append((u.uid, q.rebate))
+            if q.rebate_lag_months == 0:        # lag 0 = paid in the month of the retrofit (phase 1 of this month has already run)
+                self.public_cost += q.rebate
+                u.cash_net += q.rebate
+            else:                               # lag is a whole number >= 1 (Params rounds it): delivered in phase 1 of month t + lag
+                self.pending.setdefault(t + q.rebate_lag_months, []).append((u.uid, q.rebate))
         k = u.quintile - 1
         self.q_price[k] += q.price
         self.q_trans[k] += q.state_pays_now + q.rebate
