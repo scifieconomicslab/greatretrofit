@@ -9,21 +9,21 @@ A paperdolls model pack for the v3 retrofit model: sliders for the rebate, credi
 | Piece | State |
 |---|---|
 | `runtime.js` | Complete JavaScript port of v3 (npv, financing, rebate, credit, ownership and delivery strategies, scene-entities, the monthly loop). All randomness goes through `prng.js` (a pack-local copy of `v3/js/prng.js`). Frames follow [v3/docs/frame-schema.md](../../v3/docs/frame-schema.md). Registers as `great-retrofit` when `PaperDolls` is present. |
-| Parity | `tests/cases.json` holds 10 parameter sets (every delivery mode, every credit setting, refundable, means test, explicit buildings). Python writes golden trajectories to `tests/golden/`; Python and JS must both reproduce them (exact for integers, strings and states; 1e-9 for floats). |
-| `pack.yaml` | Valid against the paperdolls validator (`paperdolls pack check`): params in Fiscal / Credit / Delivery / Energy groups, three presets, entity fields, wall and overlay mappings, series, layout, banner. The runtime also passes `PackRuntime.checkRuntime` (deterministic, frames match the manifest) for the defaults and each preset. |
+| Parity | `tests/cases.json` holds 24 parameter sets (every delivery mode and credit setting, refundable, means test with and without market fallback, rebate lag 0 and fractional, explicit buildings, condo peer effect on/off, shared-part votes at 2/3 and 100%, public-service capacity with shared parts, canvassing, tenure overrides) plus two scene-table cases. Python writes golden trajectories to `tests/golden/`; Python and JS must both reproduce them (exact for integers, strings and states; 1e-9 for floats). |
+| `pack.yaml` | Valid against the paperdolls validator (`paperdolls pack check`): params in Fiscal / Credit / Delivery / Energy / Condo / Tenure groups, four presets, entity fields, wall, roof and overlay mappings, series, a dashboard layout (line and bar charts by income quintile, KPI tiles, A/B compare), banner. The runtime also passes `PackRuntime.checkRuntime` (deterministic, frames match the manifest) for the defaults and each preset. |
 | `bind.js` | `bindScene(scene, {sceneSeed, rules})` turns scene buildings into model buildings and units. Takes the older scene format (`id, footprint, levels`, area computed from the footprint, residential assumed) and the newer fields (`area, height, residential, neighbours`) when they exist. Returns a report listing exclusions and every assumption made. |
 
 ## What is placeholder or missing
 
 - All economics: rebate rate, lag, vendor margin, public overhead and capacity, credit rule, income and savings distributions, costs, savings per m2, energy paths, discount rate, consideration probabilities.
-- Rental buildings are a stub (shown as "not modelled yet"); condo shared-part voting and cost splitting, canvassing, moving and rebate carry-forward are not implemented. See the placeholders list.
-- `pack.yaml`: `chart`, `kpis` and `segments` entries are planned in the paperdolls shell (P5, P6) and produce validator warnings; they are not drawn yet. Until then the timeline bar shows the latest series point.
+- Rental buildings are a stub (shown as "not modelled yet"); moving and rebate carry-forward are not implemented. Condo shared-part voting with floor-area cost splitting, the neighbour effect and canvassing are implemented in both languages ([v3/docs/model-spec.md](../../v3/docs/model-spec.md) §5). See the placeholders list.
+- Charts, KPI tiles and A/B compare are drawn by the paperdolls shell from P5/P6 on (checked in [docs/verification/jette-integration.md](../../docs/verification/jette-integration.md), addendum). Known layout and readout issues are listed there and in [docs/verification/merged-build-gaps.md](../../docs/verification/merged-build-gaps.md).
 - `cost_per_retrofit` is for the active delivery mode only. To compare modes, run each preset and read it.
-- The shell (P1) places entities on scene buildings in an invented order and does not yet pass `bindScene` output to `init`. When it does (P3), `runtime.js` already takes `entities.building.specs` (the `bindScene` result under `entities`); otherwise it makes a synthetic scene of `entities.building.count` (200) buildings.
+- With a scene, `hook.js` hands the `bindScene` result to `init` (as `entities.building.specs`), so each model building stands on a real scene building. Without a scene, the runtime makes a synthetic scene of `entities.building.count` (200) buildings. A scene with no residential building stops with a message instead of falling back to synthetic buildings.
 
 ## Try it
 
-Needs the paperdolls branch `claude/model-packs-6a7453` (pack shell P1) or later.
+Needs a paperdolls checkout with the pack shell (P1) or later; the Jette page was last built against paperdolls `main` (see the verification docs). For the whole commune of Jette, use `scripts/build_jette_demo.sh` from the repository root.
 
 ```bash
 cd <paperdolls checkout> && python3 -m paperdolls pack check <this repo>/packs/great-retrofit

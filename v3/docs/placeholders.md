@@ -78,7 +78,7 @@ The rule's 45% condo share is therefore **not** a finding about Jette's co-owner
 ## Structure that is stubbed or absent (not parameters)
 
 - **Rental buildings:** stub (`ownership.Rental`); state `not_modelled`, never adopt (Q4, Q11).
-- **Condo shared parts:** implemented as a vote (see `model-spec.md`), with these structural simplifications awaiting Q13, Q14: votes weighted by floor area; supporters are households whose own NPV for their share is positive and financeable; the measure passes only if **every** owner can finance their share (no collective loan, no reserve fund); once passed, every owner pays; shared measures use no public-service capacity.
+- **Condo shared parts:** implemented as a vote (see `model-spec.md`), with these structural simplifications awaiting Q13, Q14: votes weighted by floor area; supporters are households whose own NPV for their share is positive and financeable; the measure passes only if **every** owner can finance their share (no collective loan, no reserve fund); once passed, every owner pays; in `public_service` mode a shared measure uses `ceil(units × shared_share)` capacity slots, taken from what is left after the month's unit parts (Q15).
 - **Canvassing / time budget:** implemented for condo buildings (see spec). Only advocates canvass; effect is on the consideration chance of other households in the same building; free hours are static over time (Q7).
 - **Moving, death, inheritance:** none; a household stays for `years_in_dwelling` and then stops considering (Q16). A household past its horizon still owes its share of a shared measure that passes later.
 - **Rebate carry-forward / spreading:** none; one deduction against one year's tax, shared by all the household's payments (Q2).
