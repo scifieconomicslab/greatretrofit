@@ -7,7 +7,7 @@ Simulation models of **housing energy retrofit in Brussels**. There are three ve
 
 Contributing models: **Nvidia Nemotron 3 Ultra** and **Beam 1.0**.
 
-> **v3's numbers are all placeholders** awaiting the economists ([v3/docs/placeholders.md](v3/docs/placeholders.md)). Its runs show that the structure works, not what would happen in Jette. Do not quote results from them.
+> **v3's numbers are all placeholders** awaiting answers to various questions about parameters ([v3/docs/placeholders.md](v3/docs/placeholders.md)). Its runs show that the structure works, not what would happen in Jette. Do not quote results from them.
 
 ## The three versions
 
