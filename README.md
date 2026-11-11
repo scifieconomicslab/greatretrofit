@@ -3,7 +3,7 @@
 Simulation models of **housing energy retrofit in Brussels**. There are three versions, and they ask two different questions:
 
 - **v1 and v2: the co-op question.** How do retrofit co-operatives, which have limited capital, work through a queue of buildings that need retrofitting, and how do owners, banks and neighbourhoods change that? Weekly steps.
-- **v3: the policy question.** Given who can pay, who gets the subsidy and how the work is delivered, which households retrofit, and what does the state spend? In particular, why do tax rebates on retrofits work poorly, and why are they regressive? Monthly steps, run on the real building map of Jette, live in a browser.
+- **v3: the policy question.** Given who can pay, who gets the subsidy and how the work is delivered, which households retrofit, and what does the state spend? In particular, why do tax rebates on retrofits work poorly, and why are they regressive? Monthly steps, designed to be the test stage for paperdolls, so rewritten with running in browser in mind. 
 
 Contributing models: **Nvidia Nemotron 3 Ultra** and **Beam 1.0**.
 
